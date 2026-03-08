@@ -1,0 +1,84 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiGet, apiPost, apiPatch, apiDelete } from '../api';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+export interface ApiClass {
+    _id: string;
+    teacherId: string | { _id: string; name: string; email: string };
+    studentId: string | { _id: string; name: string; class: string };
+    subject: string;
+    topic: string;
+    date: string;
+    time: string;
+    duration: number;
+    amount: number; // Note: backend uses `amount`, not `ratePerClass`
+    notes?: string;
+    status: 'scheduled' | 'completed' | 'cancelled' | 'rescheduled';
+    createdAt: string;
+}
+
+interface ClassesResponse {
+    success: boolean;
+    data: {
+        classes: ApiClass[];
+        pagination: { total: number; page: number; limit: number; totalPages: number };
+    };
+}
+
+interface ClassResponse {
+    success: boolean;
+    data: { class: ApiClass };
+}
+
+export const classKeys = {
+    all: ['classes'] as const,
+    list: (params?: Record<string, string | number | undefined>) => ['classes', 'list', params] as const,
+    detail: (id: string) => ['classes', 'detail', id] as const,
+};
+
+export function useClasses(params?: Record<string, string | number | undefined>) {
+    return useQuery({
+        queryKey: classKeys.list(params),
+        queryFn: () => apiGet<ClassesResponse>('/classes', params),
+        select: (data) => ({
+            classes: data.data.classes,
+            pagination: data.data.pagination,
+        }),
+    });
+}
+
+export function useClass(id: string) {
+    return useQuery({
+        queryKey: classKeys.detail(id),
+        queryFn: () => apiGet<ClassResponse>(`/classes/${id}`),
+        select: (data) => data.data.class,
+        enabled: !!id,
+    });
+}
+
+export function useCreateClass() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (body: Partial<ApiClass>) => apiPost<ClassResponse>('/classes', body),
+        onSuccess: () => qc.invalidateQueries({ queryKey: classKeys.all }),
+    });
+}
+
+export function useUpdateClass(id: string) {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (body: Partial<ApiClass>) => apiPatch<ClassResponse>(`/classes/${id}`, body),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: classKeys.all });
+            qc.invalidateQueries({ queryKey: classKeys.detail(id) });
+        },
+    });
+}
+
+export function useDeleteClass() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => apiDelete<{ success: boolean }>(`/classes/${id}`),
+        onSuccess: () => qc.invalidateQueries({ queryKey: classKeys.all }),
+    });
+}

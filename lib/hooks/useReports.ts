@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiGet, apiPost } from '../api';
+import { apiGet, apiPost, apiPatch, apiDelete } from '../api';
+import { toast } from 'sonner';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface ApiReport {
@@ -58,6 +59,35 @@ export function useCreateReport() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (body: Partial<ApiReport>) => apiPost<ReportResponse>('/reports', body),
-        onSuccess: () => qc.invalidateQueries({ queryKey: reportKeys.all }),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: reportKeys.all });
+            toast.success('Progress report created');
+        },
+        onError: (err: Error) => toast.error(err.message || 'Failed to create report'),
+    });
+}
+
+export function useUpdateReport(id: string) {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (body: Partial<ApiReport>) => apiPatch<ReportResponse>(`/reports/${id}`, body),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: reportKeys.all });
+            qc.invalidateQueries({ queryKey: reportKeys.detail(id) });
+            toast.success('Progress report updated');
+        },
+        onError: (err: Error) => toast.error(err.message || 'Failed to update report'),
+    });
+}
+
+export function useDeleteReport() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => apiDelete<{ success: boolean }>(`/reports/${id}`),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: reportKeys.all });
+            toast.success('Report deleted');
+        },
+        onError: (err: Error) => toast.error(err.message || 'Failed to delete report'),
     });
 }

@@ -27,7 +27,7 @@ const demoAccounts = [
 ];
 
 export default function LoginPage() {
-    const { login, isAuthenticated } = useAuth();
+    const { login, isAuthenticated, user } = useAuth();
     const router = useRouter();
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -38,19 +38,20 @@ export default function LoginPage() {
     });
 
     useEffect(() => {
-        if (isAuthenticated) router.push('/dashboard');
-    }, [isAuthenticated, router]);
+        if (isAuthenticated && user) {
+            router.push(user.role === 'student' ? '/student-dashboard' : '/dashboard');
+        }
+    }, [isAuthenticated, user, router]);
 
     const onSubmit = async (data: LoginForm) => {
         setLoading(true);
         setError('');
         try {
             const success = await login(data.email, data.password);
-            if (success) {
-                router.push('/dashboard');
-            } else {
+            if (!success) {
                 setError('Invalid email or password. Please try again.');
             }
+            // `useEffect` will handle the successful redirect once context updates
         } finally {
             setLoading(false);
         }

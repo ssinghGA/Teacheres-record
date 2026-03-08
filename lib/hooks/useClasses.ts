@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost, apiPatch, apiDelete } from '../api';
+import { toast } from 'sonner';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface ApiClass {
@@ -11,7 +12,7 @@ export interface ApiClass {
     date: string;
     time: string;
     duration: number;
-    amount: number; // Note: backend uses `amount`, not `ratePerClass`
+    amount: number;
     notes?: string;
     status: 'scheduled' | 'completed' | 'cancelled' | 'rescheduled';
     createdAt: string;
@@ -60,7 +61,11 @@ export function useCreateClass() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (body: Partial<ApiClass>) => apiPost<ClassResponse>('/classes', body),
-        onSuccess: () => qc.invalidateQueries({ queryKey: classKeys.all }),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: classKeys.all });
+            toast.success('Class recorded successfully');
+        },
+        onError: (err: Error) => toast.error(err.message || 'Failed to save class'),
     });
 }
 
@@ -71,7 +76,9 @@ export function useUpdateClass(id: string) {
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: classKeys.all });
             qc.invalidateQueries({ queryKey: classKeys.detail(id) });
+            toast.success('Class updated successfully');
         },
+        onError: (err: Error) => toast.error(err.message || 'Failed to update class'),
     });
 }
 
@@ -79,6 +86,10 @@ export function useDeleteClass() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => apiDelete<{ success: boolean }>(`/classes/${id}`),
-        onSuccess: () => qc.invalidateQueries({ queryKey: classKeys.all }),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: classKeys.all });
+            toast.success('Class deleted');
+        },
+        onError: (err: Error) => toast.error(err.message || 'Failed to delete class'),
     });
 }

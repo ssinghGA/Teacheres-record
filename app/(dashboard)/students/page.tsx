@@ -1,8 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useStudents, useCreateStudent, useUpdateStudent, useDeleteStudent, type ApiStudent } from '@/lib/hooks/useStudents';
+import {
+    useStudents, useCreateStudent, useUpdateStudent, useDeleteStudent,
+    useCheckStudentEmail, type ApiStudent
+} from '@/lib/hooks/useStudents';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Search, Pencil, Trash2, Users, Loader2, AlertCircle } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Users, Loader2, AlertCircle, CheckCircle2, Info } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 
@@ -24,7 +27,9 @@ const studentSchema = z.object({
     parentName: z.string().optional(),
     parentPhone: z.string().optional(),
     email: z.union([z.string().email('Valid email required'), z.literal('')]).optional(),
+    password: z.string().optional(),
     subject: z.string().min(2, 'Subject required'),
+    feePerClass: z.string().optional(),
     startDate: z.string().min(1, 'Start date required'),
     status: z.enum(['active', 'inactive', 'pending']),
     notes: z.string().optional(),
@@ -39,14 +44,56 @@ export default function StudentsPage() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
+    // Email check state
+    const [emailValue, setEmailValue] = useState('');
+    const [emailExists, setEmailExists] = useState<{ exists: boolean; name?: string } | null>(null);
+    const [emailChecking, setEmailChecking] = useState(false);
+    const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     const { data, isLoading, isError, error } = useStudents({ search: search || undefined });
     const createStudent = useCreateStudent();
     const deleteStudent = useDeleteStudent();
+    const checkEmail = useCheckStudentEmail();
 
-    const { register, handleSubmit, reset, control, formState: { errors } } = useForm<StudentForm>({
+    const { register, handleSubmit, reset, control, watch, formState: { errors } } = useForm<StudentForm>({
         resolver: zodResolver(studentSchema),
         defaultValues: { status: 'active', startDate: new Date().toISOString().split('T')[0] },
     });
+
+    const watchedEmail = watch('email');
+
+    // Debounced email check
+    useEffect(() => {
+        const email = watchedEmail?.trim() ?? '';
+
+        // Only check on Add mode (not Edit), and if email looks valid
+        if (editingId || !email || !email.includes('@')) {
+            setEmailExists(null);
+            return;
+        }
+
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+
+        setEmailChecking(true);
+        debounceTimer.current = setTimeout(async () => {
+            try {
+                const result = await checkEmail.mutateAsync(email);
+                if (result.data.exists) {
+                    setEmailExists({ exists: true, name: result.data.user?.name });
+                } else {
+                    setEmailExists({ exists: false });
+                }
+            } catch {
+                setEmailExists(null);
+            } finally {
+                setEmailChecking(false);
+            }
+        }, 600);
+
+        return () => {
+            if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        };
+    }, [watchedEmail, editingId]);
 
     const students = data?.students ?? [];
     const filtered = statusFilter === 'all' ? students : students.filter(s => s.status === statusFilter);
@@ -62,16 +109,21 @@ export default function StudentsPage() {
 
     const openAdd = () => {
         setEditingId(null);
+        setEmailExists(null);
+        setEmailValue('');
         reset({ status: 'active', startDate: new Date().toISOString().split('T')[0] });
         setDialogOpen(true);
     };
 
     const openEdit = (s: ApiStudent) => {
         setEditingId(s._id);
+        setEmailExists(null);
+        setEmailValue(s.email ?? '');
         reset({
             name: s.name, class: s.class, school: s.school,
             parentName: s.parentName, parentPhone: s.parentPhone,
-            email: s.email, subject: s.subject,
+            email: s.email ?? '', password: '', subject: s.subject,
+            feePerClass: s.feePerClass != null ? String(s.feePerClass) : '',
             startDate: s.startDate.split('T')[0],
             status: s.status, notes: s.notes ?? '',
         });
@@ -81,12 +133,20 @@ export default function StudentsPage() {
     const dynamicUpdate = useUpdateStudent(editingId ?? '');
 
     const onSubmit = async (data: StudentForm) => {
+        const parsed = {
+            ...data,
+            feePerClass: data.feePerClass ? parseFloat(data.feePerClass) : 0,
+        };
         if (editingId) {
-            await dynamicUpdate.mutateAsync(data);
+            await dynamicUpdate.mutateAsync(parsed);
         } else {
-            await createStudent.mutateAsync(data);
+            const payload = emailExists?.exists
+                ? { ...parsed, password: undefined }
+                : parsed;
+            await createStudent.mutateAsync(payload);
         }
         setDialogOpen(false);
+        setEmailExists(null);
         reset();
     };
 
@@ -152,7 +212,12 @@ export default function StudentsPage() {
                                         {s.name}
                                     </Link>
                                     <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{s.school} · {s.class}</p>
-                                    <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{s.subject}</p>
+                                    <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{s.subject}{s.feePerClass ? ` · ₹${s.feePerClass}/class` : ''}</p>
+                                    {s.email && (
+                                        <p className="text-xs mt-1 flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                                            <CheckCircle2 className="w-3 h-3" /> Portal access enabled
+                                        </p>
+                                    )}
                                 </div>
                                 <Badge className={`text-xs border-0 flex-shrink-0 ${statusBadge(s.status)}`}>{s.status}</Badge>
                             </div>
@@ -207,7 +272,10 @@ export default function StudentsPage() {
             </Dialog>
 
             {/* Add/Edit Dialog */}
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Dialog open={dialogOpen} onOpenChange={(open) => {
+                setDialogOpen(open);
+                if (!open) { setEmailExists(null); setEmailValue(''); }
+            }}>
                 <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>{editingId ? 'Edit Student' : 'Add New Student'}</DialogTitle>
@@ -226,22 +294,72 @@ export default function StudentsPage() {
                                 <Input placeholder="e.g. Math" {...register('subject')} />
                                 {errors.subject && <p className="text-xs text-red-500">{errors.subject.message}</p>}
                             </div>
-                            {/* <div className="col-span-2 space-y-1"><Label>School</Label>
-                                <Input placeholder="School name" {...register('school')} />
-                                {errors.school && <p className="text-xs text-red-500">{errors.school.message}</p>}
+                            <div className="space-y-1"><Label>Fee Per Class (₹)</Label>
+                                <Input type="number" placeholder="e.g. 500" {...register('feePerClass')} />
                             </div>
-                            <div className="space-y-1"><Label>Parent Name</Label>
-                                <Input placeholder="Parent name" {...register('parentName')} />
-                                {errors.parentName && <p className="text-xs text-red-500">{errors.parentName.message}</p>}
+
+                            {/* ─── Portal Access Section ─── */}
+                            <div className="col-span-2 pt-1">
+                                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Student Portal Access</p>
                             </div>
-                            <div className="space-y-1"><Label>Parent Phone</Label>
-                                <Input placeholder="Phone number" {...register('parentPhone')} />
-                                {errors.parentPhone && <p className="text-xs text-red-500">{errors.parentPhone.message}</p>}
-                            </div>
-                            <div className="col-span-2 space-y-1"><Label>Email</Label>
-                                <Input type="email" placeholder="student@email.com" {...register('email')} />
+
+                            {/* Email field with live check indicator */}
+                            <div className="col-span-2 space-y-1">
+                                <Label>Student Email</Label>
+                                <div className="relative">
+                                    <Input
+                                        type="email"
+                                        placeholder="student@email.com"
+                                        className="pr-8"
+                                        {...register('email')}
+                                    />
+                                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                                        {emailChecking && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                                        {!emailChecking && emailExists?.exists === true && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+                                        {!emailChecking && emailExists?.exists === false && <CheckCircle2 className="w-4 h-4 text-blue-400" />}
+                                    </div>
+                                </div>
                                 {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
-                            </div> */}
+                            </div>
+
+                            {/* Smart email status banner */}
+                            {!editingId && emailExists?.exists === true && (
+                                <div className="col-span-2 flex items-start gap-2.5 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                                    <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
+                                            Student account already exists!
+                                        </p>
+                                        <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">
+                                            <strong>{emailExists.name}</strong> already has a portal login. No need to set a new password — just add the email above and this student will be linked to your class automatically.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {!editingId && emailExists?.exists === false && watchedEmail && watchedEmail.includes('@') && (
+                                <div className="col-span-2 flex items-start gap-2.5 p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                                    <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">New student account will be created</p>
+                                        <p className="text-xs text-blue-700 dark:text-blue-400 mt-0.5">A portal login will be set up with the password below. Leave blank to use the default: <code className="bg-blue-100 dark:bg-blue-900/40 px-1 rounded">student123</code></p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Password field — hidden when account already exists */}
+                            {!editingId && emailExists?.exists !== true && (
+                                <div className="col-span-2 space-y-1">
+                                    <Label>Password</Label>
+                                    <Input
+                                        type="password"
+                                        placeholder="student123 (Default)"
+                                        {...register('password')}
+                                    />
+                                    {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
+                                </div>
+                            )}
+
                             <div className="space-y-1"><Label>Start Date *</Label>
                                 <Input type="date" {...register('startDate')} />
                                 {errors.startDate && <p className="text-xs text-red-500">{errors.startDate.message}</p>}

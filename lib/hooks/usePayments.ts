@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost, apiPatch } from '../api';
+import { toast } from 'sonner';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface ApiPayment {
@@ -7,7 +8,7 @@ export interface ApiPayment {
     teacherId: string | { _id: string; name: string; email: string };
     studentId: string | { _id: string; name: string; class: string };
     amount: number;
-    paymentDate: string; // Note: backend uses `paymentDate`, not `date`
+    paymentDate: string;
     status: 'paid' | 'pending' | 'overdue';
     createdAt: string;
 }
@@ -56,7 +57,11 @@ export function useCreatePayment() {
     return useMutation({
         mutationFn: (body: { studentId: string; amount: number; paymentDate: string; status: string }) =>
             apiPost<PaymentResponse>('/payments', body),
-        onSuccess: () => qc.invalidateQueries({ queryKey: paymentKeys.all }),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: paymentKeys.all });
+            toast.success('Payment recorded successfully');
+        },
+        onError: (err: Error) => toast.error(err.message || 'Failed to record payment'),
     });
 }
 
@@ -67,6 +72,8 @@ export function useUpdatePayment(id: string) {
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: paymentKeys.all });
             qc.invalidateQueries({ queryKey: paymentKeys.detail(id) });
+            toast.success('Payment updated successfully');
         },
+        onError: (err: Error) => toast.error(err.message || 'Failed to update payment'),
     });
 }

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost, apiPatch, apiDelete } from '../api';
+import { toast } from 'sonner';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface ApiStudent {
@@ -10,8 +11,10 @@ export interface ApiStudent {
     school: string;
     parentName: string;
     parentPhone: string;
-    email: string;
+    email?: string;
+    password?: string;
     subject: string;
+    feePerClass?: number;
     startDate: string;
     status: 'active' | 'inactive' | 'pending';
     notes?: string;
@@ -31,15 +34,13 @@ interface StudentResponse {
     data: { student: ApiStudent };
 }
 
-// ─── Query Keys ───────────────────────────────────────────────────────────────
 export const studentKeys = {
     all: ['students'] as const,
-    list: (params?: Record<string, string | number | undefined>) => ['students', 'list', params] as const,
+    list: (params?: Record<string, string | undefined>) => ['students', 'list', params] as const,
     detail: (id: string) => ['students', 'detail', id] as const,
 };
 
-// ─── Hooks ───────────────────────────────────────────────────────────────────
-export function useStudents(params?: Record<string, string | number | undefined>) {
+export function useStudents(params?: Record<string, string | undefined>) {
     return useQuery({
         queryKey: studentKeys.list(params),
         queryFn: () => apiGet<StudentsResponse>('/students', params),
@@ -63,7 +64,11 @@ export function useCreateStudent() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (body: Partial<ApiStudent>) => apiPost<StudentResponse>('/students', body),
-        onSuccess: () => qc.invalidateQueries({ queryKey: studentKeys.all }),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: studentKeys.all });
+            toast.success('Student added successfully');
+        },
+        onError: (err: Error) => toast.error(err.message || 'Failed to add student'),
     });
 }
 
@@ -74,7 +79,9 @@ export function useUpdateStudent(id: string) {
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: studentKeys.all });
             qc.invalidateQueries({ queryKey: studentKeys.detail(id) });
+            toast.success('Student updated successfully');
         },
+        onError: (err: Error) => toast.error(err.message || 'Failed to update student'),
     });
 }
 
@@ -82,6 +89,24 @@ export function useDeleteStudent() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => apiDelete<{ success: boolean }>(`/students/${id}`),
-        onSuccess: () => qc.invalidateQueries({ queryKey: studentKeys.all }),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: studentKeys.all });
+            toast.success('Student deleted');
+        },
+        onError: (err: Error) => toast.error(err.message || 'Failed to delete student'),
+    });
+}
+
+export interface CheckEmailResponse {
+    success: boolean;
+    data: {
+        exists: boolean;
+        user: { name: string } | null;
+    };
+}
+
+export function useCheckStudentEmail() {
+    return useMutation({
+        mutationFn: (email: string) => apiPost<CheckEmailResponse>('/students/check-email', { email }),
     });
 }

@@ -5,7 +5,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useStudent } from '@/lib/hooks/useStudents';
 import { useReports } from '@/lib/hooks/useReports';
 import { useClasses } from '@/lib/hooks/useClasses';
-import { usePayments } from '@/lib/hooks/usePayments';
 import { useTeacher } from '@/lib/hooks/useTeachers';
 import { Button } from '@/components/ui/button';
 import { Download, Loader2, ArrowLeft, Printer } from 'lucide-react';
@@ -13,7 +12,6 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import type { ApiReport } from '@/lib/hooks/useReports';
 import type { ApiClass } from '@/lib/hooks/useClasses';
-import type { ApiPayment } from '@/lib/hooks/usePayments';
 
 export default function StudentReportPage({ params }: { params: Promise<{ id: string }> }) {
     const { id: studentId } = use(params);
@@ -23,17 +21,13 @@ export default function StudentReportPage({ params }: { params: Promise<{ id: st
     const { data: student, isLoading: loadingStudent } = useStudent(studentId);
     const { data: reportsData, isLoading: loadingReports } = useReports({ studentId });
     const { data: classesData, isLoading: loadingClasses } = useClasses({ studentId });
-    const { data: paymentsData, isLoading: loadingPayments } = usePayments({ studentId });
     const { data: teacher } = useTeacher(user?._id ?? '');
 
     const reports = reportsData?.reports ?? [];
     const classes = classesData?.classes ?? [];
-    const payments = paymentsData?.payments ?? [];
 
-    const isLoading = loadingStudent || loadingReports || loadingClasses || loadingPayments;
+    const isLoading = loadingStudent || loadingReports || loadingClasses;
 
-    const totalPaid = payments.filter(p => p.status === 'paid').reduce((s, p) => s + p.amount, 0);
-    const totalPending = payments.filter(p => p.status === 'pending' || p.status === 'overdue').reduce((s, p) => s + p.amount, 0);
     const completedClasses = classes.filter(c => c.status === 'completed').length;
     const avgUnderstanding = reports.length > 0
         ? (reports.reduce((s, r) => s + r.understandingLevel, 0) / reports.length).toFixed(1)
@@ -120,11 +114,11 @@ export default function StudentReportPage({ params }: { params: Promise<{ id: st
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
                                         {/* Logo mark */}
                                         <div style={{ width: 44, height: 44, borderRadius: 10, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid rgba(255,255,255,0.3)' }}>
-                                            <span style={{ color: '#fff', fontSize: 20, fontWeight: 700 }}>TP</span>
+                                            <span style={{ color: '#fff', fontSize: 20, fontWeight: 700 }}>SL</span>
                                         </div>
                                         <div>
-                                            <div style={{ color: '#fff', fontSize: 20, fontWeight: 700, letterSpacing: 0.5 }}>TeacherPro</div>
-                                            <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase' }}>Management System</div>
+                                            <div style={{ color: '#fff', fontSize: 20, fontWeight: 700, letterSpacing: 0.5 }}>SRV Learning</div>
+                                            <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase' }}>Student Progress Report</div>
                                         </div>
                                     </div>
                                     <h1 style={{ color: '#fff', fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: 0.3 }}>Student Progress Report</h1>
@@ -206,12 +200,10 @@ export default function StudentReportPage({ params }: { params: Promise<{ id: st
                         {/* ── Performance Summary Cards ────────────────────────────── */}
                         <div style={{ marginBottom: 28 }}>
                             <SectionTitle color="#1e40af">Performance Overview</SectionTitle>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginTop: 12 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginTop: 12 }}>
                                 {[
                                     { label: 'Classes Attended', value: completedClasses, unit: `/ ${classes.length} total`, color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe' },
                                     { label: 'Avg Understanding', value: avgUnderstanding, unit: '/ 5.0', color: '#7c3aed', bg: '#faf5ff', border: '#ddd6fe' },
-                                    { label: 'Total Paid', value: `₹${totalPaid.toLocaleString('en-IN')}`, unit: 'received', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
-                                    { label: 'Outstanding', value: `₹${totalPending.toLocaleString('en-IN')}`, unit: 'pending', color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
                                 ].map(s => (
                                     <div key={s.label} style={{ background: s.bg, border: `1.5px solid ${s.border}`, borderRadius: 10, padding: '14px 14px 12px' }}>
                                         <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
@@ -322,24 +314,7 @@ export default function StudentReportPage({ params }: { params: Promise<{ id: st
                             </div>
                         )}
 
-                        {/* ── Payment Summary ──────────────────────────────────────── */}
-                        {payments.length > 0 && (
-                            <div style={{ marginBottom: 32 }}>
-                                <SectionTitle color="#1e40af">Payment Summary</SectionTitle>
-                                <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-                                    {[
-                                        { label: 'Total Billed', value: `₹${payments.reduce((s, p) => s + p.amount, 0).toLocaleString('en-IN')}`, color: '#1d4ed8', border: '#bfdbfe', bg: '#eff6ff' },
-                                        { label: 'Amount Received', value: `₹${totalPaid.toLocaleString('en-IN')}`, color: '#16a34a', border: '#bbf7d0', bg: '#f0fdf4' },
-                                        { label: 'Balance Pending', value: `₹${totalPending.toLocaleString('en-IN')}`, color: '#dc2626', border: '#fecaca', bg: '#fef2f2' },
-                                    ].map(s => (
-                                        <div key={s.label} style={{ border: `1.5px solid ${s.border}`, borderRadius: 8, padding: '14px 16px', background: s.bg, textAlign: 'center' }}>
-                                            <div style={{ fontSize: 20, fontWeight: 800, color: s.color, marginBottom: 4 }}>{s.value}</div>
-                                            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>{s.label}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+                        {/* ── Payment Summary REMOVED ── */}
 
                         {/* ── Signature Section ────────────────────────────────────── */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 24, marginTop: 16, paddingTop: 24, borderTop: '1.5px dashed #e2e8f0' }}>
@@ -360,7 +335,7 @@ export default function StudentReportPage({ params }: { params: Promise<{ id: st
                         {/* ── Footer ───────────────────────────────────────────────── */}
                         <div style={{ marginTop: 28, paddingTop: 16, borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ fontSize: 10, color: '#94a3b8' }}>
-                                Generated by TeacherPro Management System · {reportDate}
+                                Generated by SRV Learning · {reportDate}
                             </div>
                             <div style={{ fontSize: 10, color: '#94a3b8' }}>
                                 CONFIDENTIAL — For Official Use Only

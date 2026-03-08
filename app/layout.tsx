@@ -6,8 +6,8 @@ import Providers from './providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'TeacherPro Dashboard',
-  description: 'Modern Teacher Management Dashboard for efficient education management',
+  title: 'SRV Learning',
+  description: 'SRV Learning – Teacher Management Dashboard',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

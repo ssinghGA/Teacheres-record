@@ -1,19 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStudents } from '@/lib/hooks/useStudents';
-import { useCreateClass } from '@/lib/hooks/useClasses';
+import { useCreateClass, useUpdateClass, useDeleteClass } from '@/lib/hooks/useClasses';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useClasses, type ApiClass } from '@/lib/hooks/useClasses';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { BookOpen, CheckCircle, Loader2 } from 'lucide-react';
+import { BookOpen, CheckCircle, Loader2, Pencil, Trash2, AlertCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
 
 const classSchema = z.object({
     studentId: z.string().min(1, 'Select a student'),
@@ -31,23 +35,42 @@ type ClassForm = z.infer<typeof classSchema>;
 export default function AddClassPage() {
     const { user } = useAuth();
     const [success, setSuccess] = useState(false);
+    const [editingClass, setEditingClass] = useState<ApiClass | null>(null);
+    const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
     const { data: studentsData } = useStudents();
+    const { data: classesData, isLoading: classesLoading } = useClasses();
     const createClass = useCreateClass();
-    const students = studentsData?.students ?? [];
+    const deleteClass = useDeleteClass();
 
-    const { register, handleSubmit, reset, control, formState: { errors } } = useForm<ClassForm>({
+    const students = studentsData?.students ?? [];
+    const allClasses = classesData?.classes ?? [];
+
+    const { register, handleSubmit, reset, control, setValue, watch, formState: { errors } } = useForm<ClassForm>({
         resolver: zodResolver(classSchema),
         defaultValues: {
             date: new Date().toISOString().split('T')[0],
             time: '10:00',
             duration: '60',
-            status: 'scheduled',
+            status: 'completed', // default to completed
         },
     });
 
+    const watchedStudentId = watch('studentId');
+
+    // Auto-fill subject and amount from selected student
+    useEffect(() => {
+        if (!watchedStudentId) return;
+        const student = students.find(s => s._id === watchedStudentId);
+        if (!student) return;
+        if (student.subject) setValue('subject', student.subject);
+        if (student.feePerClass) setValue('amount', String(student.feePerClass));
+    }, [watchedStudentId, students, setValue]);
+
+    const editMutation = useUpdateClass(editingClass?._id ?? '');
+
     const onSubmit = async (data: ClassForm) => {
-        await createClass.mutateAsync({
+        const payload = {
             studentId: data.studentId,
             subject: data.subject,
             topic: data.topic,
@@ -57,9 +80,44 @@ export default function AddClassPage() {
             amount: parseFloat(data.amount),
             notes: data.notes,
             status: data.status as 'scheduled' | 'completed' | 'cancelled' | 'rescheduled',
+        };
+
+        if (editingClass) {
+            await editMutation.mutateAsync(payload);
+            setEditingClass(null);
+        } else {
+            await createClass.mutateAsync(payload);
+            setSuccess(true);
+        }
+        reset({
+            date: new Date().toISOString().split('T')[0],
+            time: '10:00',
+            duration: '60',
+            status: 'completed',
         });
-        setSuccess(true);
-        reset();
+    };
+
+    const openEdit = (c: ApiClass) => {
+        setEditingClass(c);
+        const studentId = typeof c.studentId === 'object' ? c.studentId._id : c.studentId;
+        reset({
+            studentId,
+            subject: c.subject,
+            topic: c.topic,
+            date: c.date.split('T')[0],
+            time: c.time,
+            duration: String(c.duration),
+            amount: String(c.amount),
+            notes: c.notes ?? '',
+            status: c.status,
+        });
+    };
+
+    const statusColor: Record<string, string> = {
+        completed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+        scheduled: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+        cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+        rescheduled: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
     };
 
     if (success) {
@@ -87,7 +145,8 @@ export default function AddClassPage() {
             <Card className="shadow-sm border" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
                 <CardHeader className="pb-2">
                     <CardTitle className="text-base flex items-center gap-2">
-                        <BookOpen className="w-4 h-4 text-blue-600" /> Session Details
+                        <BookOpen className="w-4 h-4 text-blue-600" />
+                        {editingClass ? 'Edit Class Session' : 'Session Details'}
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -95,14 +154,35 @@ export default function AddClassPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="col-span-2 space-y-1">
                                 <Label>Student *</Label>
-                                <Controller name="studentId" control={control} render={({ field }) => (
-                                    <Select value={field.value} onValueChange={v => field.onChange(v ?? '')}>
-                                        <SelectTrigger><SelectValue placeholder="Select student" /></SelectTrigger>
-                                        <SelectContent>
-                                            {students.map(s => <SelectItem key={s._id} value={s._id}>{s.name} — {s.subject}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                )} />
+                                <Controller name="studentId" control={control} render={({ field }) => {
+                                    const selectedStudent = students.find(s => s._id === field.value);
+                                    return (
+                                        <Select value={field.value} onValueChange={v => field.onChange(v ?? '')}>
+                                            <SelectTrigger>
+                                                {selectedStudent ? (
+                                                    <span className="truncate">
+                                                        {selectedStudent.name} — {selectedStudent.subject}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-muted-foreground">Select student</span>
+                                                )}
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {students.filter(s => s.status === 'active').map(s => (
+                                                    <SelectItem key={s._id} value={s._id}>
+                                                        {s.name} — {s.subject}
+                                                    </SelectItem>
+                                                ))}
+                                                {/* Show currently selected student even if inactive (editing mode) */}
+                                                {editingClass && students.find(s => s._id === field.value && s.status !== 'active') && (
+                                                    <SelectItem key={field.value} value={field.value}>
+                                                        {students.find(s => s._id === field.value)?.name} (Inactive)
+                                                    </SelectItem>
+                                                )}
+                                            </SelectContent>
+                                        </Select>
+                                    );
+                                }} />
                                 {errors.studentId && <p className="text-xs text-red-500">{errors.studentId.message}</p>}
                             </div>
                             <div className="space-y-1"><Label>Subject *</Label>
@@ -139,11 +219,11 @@ export default function AddClassPage() {
                             </div>
                             <div className="space-y-1"><Label>Status *</Label>
                                 <Controller name="status" control={control} render={({ field }) => (
-                                    <Select value={field.value} onValueChange={v => field.onChange(v ?? 'upcoming')}>
+                                    <Select value={field.value} onValueChange={v => field.onChange(v ?? 'completed')}>
                                         <SelectTrigger><SelectValue /></SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="scheduled">Scheduled</SelectItem>
                                             <SelectItem value="completed">Completed</SelectItem>
+                                            <SelectItem value="scheduled">Scheduled</SelectItem>
                                             <SelectItem value="cancelled">Cancelled</SelectItem>
                                             <SelectItem value="rescheduled">Rescheduled</SelectItem>
                                         </SelectContent>
@@ -155,15 +235,77 @@ export default function AddClassPage() {
                             </div>
                         </div>
                         <div className="flex justify-end gap-3 pt-2">
-                            <Button type="button" variant="outline" onClick={() => reset()}>Reset</Button>
-                            <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white gap-2" disabled={createClass.isPending}>
-                                {createClass.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                                Save Class
+                            {editingClass && (
+                                <Button type="button" variant="outline" onClick={() => {
+                                    setEditingClass(null);
+                                    reset({ date: new Date().toISOString().split('T')[0], time: '10:00', duration: '60', status: 'completed' });
+                                }}>Cancel Edit</Button>
+                            )}
+                            <Button type="button" variant="outline" onClick={() => reset({ date: new Date().toISOString().split('T')[0], time: '10:00', duration: '60', status: 'completed' })}>Reset</Button>
+                            <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white gap-2" disabled={createClass.isPending || editMutation.isPending}>
+                                {(createClass.isPending || editMutation.isPending) && <Loader2 className="w-4 h-4 animate-spin" />}
+                                {editingClass ? 'Update Class' : 'Save Class'}
                             </Button>
                         </div>
                     </form>
                 </CardContent>
             </Card>
+
+            {/* Recent Classes List */}
+            <div>
+                <h2 className="text-lg font-semibold mb-3" style={{ color: 'var(--foreground)' }}>Recent Classes</h2>
+                {classesLoading ? (
+                    <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-blue-600" /></div>
+                ) : allClasses.length === 0 ? (
+                    <div className="text-center py-8" style={{ color: 'var(--muted-foreground)' }}>
+                        <AlertCircle className="w-6 h-6 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No classes recorded yet</p>
+                    </div>
+                ) : (
+                    <div className="space-y-2">
+                        {allClasses.slice(0, 10).map(c => {
+                            const studentName = typeof c.studentId === 'object' ? c.studentId.name : '—';
+                            return (
+                                <Card key={c._id} className="border shadow-sm hover:shadow-md transition-all" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+                                    <CardContent className="p-4 flex items-center justify-between gap-4">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="font-semibold text-sm" style={{ color: 'var(--foreground)' }}>{studentName}</span>
+                                                <Badge className={`text-xs border-0 ${statusColor[c.status] ?? ''}`}>{c.status}</Badge>
+                                            </div>
+                                            <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                                                {c.subject} · {c.topic} · {format(new Date(c.date), 'dd MMM yyyy')} · ₹{c.amount}
+                                            </p>
+                                        </div>
+                                        <div className="flex gap-1 flex-shrink-0">
+                                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => openEdit(c)}>
+                                                <Pencil className="w-3.5 h-3.5" />
+                                            </Button>
+                                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setDeleteConfirm(c._id)}>
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </Button>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* Delete confirm dialog */}
+            <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader><DialogTitle>Delete Class?</DialogTitle></DialogHeader>
+                    <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>This action cannot be undone.</p>
+                    <div className="flex justify-end gap-3 mt-4">
+                        <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+                        <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={async () => {
+                            if (deleteConfirm) { await deleteClass.mutateAsync(deleteConfirm); setDeleteConfirm(null); }
+                        }}>Delete</Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

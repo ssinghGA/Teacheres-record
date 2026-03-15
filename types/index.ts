@@ -13,6 +13,7 @@ export interface User {
   qualification?: string;
   experience?: string;
   bio?: string;
+  googleMeetLink?: string;
 }
 
 export interface Student {

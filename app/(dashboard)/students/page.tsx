@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import {
-    useStudents, useCreateStudent, useUpdateStudent, useDeleteStudent,
-    useCheckStudentEmail, type ApiStudent
-} from '@/lib/hooks/useStudents';
+import { useStudents, useCreateStudent, useUpdateStudent, useDeleteStudent, useCheckStudentEmail, type ApiStudent } from '@/lib/hooks/useStudents';
+import { useTeachers } from '@/lib/hooks/useTeachers';
+import { useClasses } from '@/lib/hooks/useClasses';
 import { Card, CardContent } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Search, Pencil, Trash2, Users, Loader2, AlertCircle, CheckCircle2, Info } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Users, Loader2, AlertCircle, CheckCircle2, Info, MoreVertical, Calendar, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 
@@ -33,6 +35,7 @@ const studentSchema = z.object({
     startDate: z.string().min(1, 'Start date required'),
     status: z.enum(['active', 'inactive', 'pending']),
     notes: z.string().optional(),
+    teacherId: z.string().optional(),
 });
 type StudentForm = z.infer<typeof studentSchema>;
 
@@ -42,6 +45,7 @@ export default function StudentsPage() {
     const [statusFilter, setStatusFilter] = useState('all');
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [assigningStudent, setAssigningStudent] = useState<ApiStudent | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
     // Email check state
@@ -52,8 +56,13 @@ export default function StudentsPage() {
 
     const { data, isLoading, isError, error } = useStudents({ search: search || undefined });
     const createStudent = useCreateStudent();
+    const updateStudent = useUpdateStudent(editingId ?? '');
     const deleteStudent = useDeleteStudent();
     const checkEmail = useCheckStudentEmail();
+    const { data: teachersData } = useTeachers();
+    const teachers = teachersData ?? [];
+    const { data: classesData } = useClasses();
+    const allClasses = classesData?.classes ?? [];
 
     const { register, handleSubmit, reset, control, watch, formState: { errors } } = useForm<StudentForm>({
         resolver: zodResolver(studentSchema),
@@ -111,8 +120,12 @@ export default function StudentsPage() {
         setEditingId(null);
         setEmailExists(null);
         setEmailValue('');
-        reset({ status: 'active', startDate: new Date().toISOString().split('T')[0] });
+        reset({ status: 'active', startDate: new Date().toISOString().split('T')[0], teacherId: (user?.role === 'super_admin' || user?.role === 'admin') ? '' : user?._id });
         setDialogOpen(true);
+    };
+
+    const openAssign = (s: ApiStudent) => {
+        setAssigningStudent(s);
     };
 
     const openEdit = (s: ApiStudent) => {
@@ -130,15 +143,13 @@ export default function StudentsPage() {
         setDialogOpen(true);
     };
 
-    const dynamicUpdate = useUpdateStudent(editingId ?? '');
-
     const onSubmit = async (data: StudentForm) => {
         const parsed = {
             ...data,
             feePerClass: data.feePerClass ? parseFloat(data.feePerClass) : 0,
         };
         if (editingId) {
-            await dynamicUpdate.mutateAsync(parsed);
+            await updateStudent.mutateAsync(parsed);
         } else {
             const payload = emailExists?.exists
                 ? { ...parsed, password: undefined }
@@ -198,56 +209,129 @@ export default function StudentsPage() {
                 </CardContent>
             </Card>
 
-            {/* Student Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {filtered.map((s) => (
-                    <Card key={s._id} className="shadow-sm border hover:shadow-md transition-all" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-                        <CardContent className="p-4">
-                            <div className="flex items-start gap-3">
-                                <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-700 font-bold text-sm flex-shrink-0">
-                                    {s.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <Link href={`/students/${s._id}`} className="font-semibold hover:text-blue-600 transition-colors" style={{ color: 'var(--foreground)' }}>
-                                        {s.name}
-                                    </Link>
-                                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{s.school} · {s.class}</p>
-                                    <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{s.subject}{s.feePerClass ? ` · ₹${s.feePerClass}/class` : ''}</p>
-                                    {s.email && (
-                                        <p className="text-xs mt-1 flex items-center gap-1 text-blue-600 dark:text-blue-400">
-                                            <CheckCircle2 className="w-3 h-3" /> Portal access enabled
-                                        </p>
-                                    )}
-                                </div>
-                                <Badge className={`text-xs border-0 flex-shrink-0 ${statusBadge(s.status)}`}>{s.status}</Badge>
-                            </div>
-                            <div className="mt-3 pt-3 border-t flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
-                                <div className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                                    Since {s.startDate ? format(new Date(s.startDate), 'dd MMM yyyy') : 'N/A'}
-                                </div>
-                                <div className="flex gap-1">
-                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(s)}>
-                                        <Pencil className="w-3.5 h-3.5" />
-                                    </Button>
-                                    <Button
-                                        variant="ghost" size="sm"
-                                        className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                        onClick={() => setDeleteConfirm(s._id)}
-                                    >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                    </Button>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                ))}
-                {filtered.length === 0 && (
-                    <div className="col-span-full text-center py-12">
-                        <Users className="w-8 h-8 mx-auto mb-2" style={{ color: 'var(--muted-foreground)' }} />
-                        <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>No students found</p>
-                    </div>
-                )}
-            </div>
+            {/* Students Table */}
+            <Card className="shadow-sm border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="bg-muted/50 hover:bg-muted/50">
+                                <TableHead className="w-[120px]">Date/Time</TableHead>
+                                <TableHead>Student</TableHead>
+                                {(user?.role === 'super_admin' || user?.role === 'admin') && <TableHead>Teacher</TableHead>}
+                                <TableHead>Subject</TableHead>
+                                <TableHead>Fee (₹)</TableHead>
+                                <TableHead className="text-center">Classes</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {filtered.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={8} className="h-32 text-center">
+                                        <div className="flex flex-col items-center justify-center text-muted-foreground">
+                                            <Users className="w-8 h-8 mb-2 opacity-20" />
+                                            <p>No students found</p>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                filtered.map((s) => {
+                                    const studentClasses = allClasses.filter(c => 
+                                        typeof c.studentId === 'string' ? c.studentId === s._id : (c.studentId as { _id: string })._id === s._id
+                                    );
+                                    const completedClasses = studentClasses.filter(c => c.status === 'completed').length;
+                                    const totalClasses = studentClasses.length;
+
+                                    return (
+                                        <TableRow key={s._id} className="hover:bg-muted/50 transition-colors">
+                                            <TableCell>
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center gap-1.5 text-xs font-medium">
+                                                        <Calendar className="w-3.5 h-3.5 text-blue-500" />
+                                                        {s.startDate ? format(new Date(s.startDate), 'dd MMM yyyy') : 'N/A'}
+                                                    </div>
+                                                    {studentClasses.length > 0 && (
+                                                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                                                            <Clock className="w-3 h-3" />
+                                                            {studentClasses[0].time || 'N/A'}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-3">
+                                                    <Avatar className="h-9 w-9">
+                                                        <AvatarFallback className="bg-blue-100 text-blue-700 font-bold text-xs">
+                                                            {s.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                    <div className="flex flex-col">
+                                                        <Link href={`/students/${s._id}`} className="font-semibold text-sm hover:text-blue-600 transition-colors">
+                                                            {s.name}
+                                                        </Link>
+                                                        <span className="text-[11px] text-muted-foreground line-clamp-1">{s.school} · {s.class}</span>
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                            {(user?.role === 'super_admin' || user?.role === 'admin') && (
+                                                <TableCell>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-medium">{typeof s.teacherId === 'object' ? s.teacherId.name : 'Unknown'}</span>
+                                                        <span className="text-[10px] text-muted-foreground">ID: {typeof s.teacherId === 'object' ? s.teacherId._id.slice(-6) : 'N/A'}</span>
+                                                    </div>
+                                                </TableCell>
+                                            )}
+                                            <TableCell>
+                                                <Badge variant="secondary" className="bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-0 font-medium">
+                                                    {s.subject}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                <span className="font-semibold text-sm">₹{s.feePerClass || 0}</span>
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-bold">{completedClasses} / {totalClasses}</span>
+                                                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Done</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge className={`text-[10px] uppercase tracking-wider font-bold border-0 ${statusBadge(s.status)}`}>
+                                                    {s.status}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger className="h-8 w-8 p-0 flex items-center justify-center hover:bg-muted rounded-md transition-colors outline-none text-black mx-auto mr-0">
+                                                        <MoreVertical className="h-4 w-4" />
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="w-40 text-black">
+                                                        {(user?.role === 'super_admin' || user?.role === 'admin') && (
+                                                            <DropdownMenuItem onClick={() => openAssign(s)} className="gap-2 cursor-pointer">
+                                                                <Users className="w-4 h-4 text-blue-600" /> Assign Teacher
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        <DropdownMenuItem onClick={() => openEdit(s)} className="gap-2 cursor-pointer">
+                                                            <Pencil className="w-4 h-4 text-emerald-600" /> Edit Student
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem 
+                                                            onClick={() => setDeleteConfirm(s._id)} 
+                                                            className="gap-2 text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" /> Delete Student
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </Card>
 
             {/* Delete confirm */}
             <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
@@ -297,6 +381,31 @@ export default function StudentsPage() {
                             <div className="space-y-1"><Label>Fee Per Class (₹)</Label>
                                 <Input type="number" placeholder="e.g. 500" {...register('feePerClass')} />
                             </div>
+
+                            {/* Teacher Selection (for Admins) */}
+                            {(user?.role === 'super_admin' || user?.role === 'admin') && (
+                                <div className="col-span-2 space-y-1">
+                                    <Label>Assign Teacher *</Label>
+                                    <Controller
+                                        name="teacherId"
+                                        control={control}
+                                        rules={{ required: !editingId }}
+                                        render={({ field }) => (
+                                            <Select value={field.value} onValueChange={field.onChange}>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select a teacher" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {teachers.map(t => (
+                                                        <SelectItem key={t._id} value={t._id}>{t.name} ({t.email})</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                    />
+                                    {errors.teacherId && <p className="text-xs text-red-500">Teacher assignment is required</p>}
+                                </div>
+                            )}
 
                             {/* ─── Portal Access Section ─── */}
                             <div className="col-span-2 pt-1">
@@ -385,15 +494,133 @@ export default function StudentsPage() {
                             <Button
                                 type="submit"
                                 className="bg-blue-600 hover:bg-blue-700 text-white"
-                                disabled={createStudent.isPending || dynamicUpdate.isPending}
+                                disabled={createStudent.isPending || updateStudent.isPending}
                             >
-                                {(createStudent.isPending || dynamicUpdate.isPending) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                                {(createStudent.isPending || updateStudent.isPending) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                                 {editingId ? 'Save Changes' : 'Add Student'}
                             </Button>
                         </div>
                     </form>
                 </DialogContent>
             </Dialog>
+
+            {/* Assign Another Teacher Dialog */}
+            <AssignTeacherDialog
+                student={assigningStudent}
+                teachers={teachers}
+                onClose={() => setAssigningStudent(null)}
+            />
         </div>
+    );
+}
+
+function AssignTeacherDialog({ student, teachers, onClose }: { 
+    student: ApiStudent | null; 
+    teachers: any[]; 
+    onClose: () => void 
+}) {
+    const createStudent = useCreateStudent();
+    const { register, handleSubmit, control, reset, formState: { errors } } = useForm({
+        defaultValues: {
+            teacherId: '',
+            subject: '',
+            feePerClass: '',
+            startDate: new Date().toISOString().split('T')[0],
+        }
+    });
+
+    useEffect(() => {
+        if (student) {
+            reset({
+                teacherId: '',
+                subject: student.subject,
+                feePerClass: student.feePerClass ? String(student.feePerClass) : '',
+                startDate: new Date().toISOString().split('T')[0],
+            });
+        }
+    }, [student, reset]);
+
+    const onSubmit = async (data: any) => {
+        if (!student) return;
+        
+        const payload = {
+            name: student.name,
+            class: student.class,
+            school: student.school,
+            parentName: student.parentName,
+            parentPhone: student.parentPhone,
+            email: student.email,
+            subject: data.subject,
+            feePerClass: parseFloat(data.feePerClass || '0'),
+            teacherId: data.teacherId,
+            startDate: data.startDate,
+            status: 'active' as const,
+        };
+
+        await createStudent.mutateAsync(payload);
+        onClose();
+    };
+
+    return (
+        <Dialog open={!!student} onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className="max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Assign Another Teacher</DialogTitle>
+                    <p className="text-xs text-muted-foreground mt-1">
+                        Assigning <strong>{student?.name}</strong> to an additional teacher for a different subject.
+                    </p>
+                </DialogHeader>
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2">
+                    <div className="space-y-1">
+                        <Label>Select Teacher *</Label>
+                        <Controller
+                            name="teacherId"
+                            control={control}
+                            rules={{ required: 'Required' }}
+                            render={({ field }) => (
+                                <Select value={field.value} onValueChange={field.onChange}>
+                                    <SelectTrigger><SelectValue placeholder="Choose teacher" /></SelectTrigger>
+                                    <SelectContent>
+                                        {teachers.map(t => (
+                                            <SelectItem key={t._id} value={t._id}>{t.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
+                        />
+                        {errors.teacherId && <p className="text-xs text-red-500">Teacher is required</p>}
+                    </div>
+
+                    <div className="space-y-1">
+                        <Label>Subject *</Label>
+                        <Input placeholder="e.g. Physics" {...register('subject', { required: 'Required' })} />
+                        {errors.subject && <p className="text-xs text-red-500">Subject is required</p>}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                            <Label>Fee Per Class (₹)</Label>
+                            <Input type="number" placeholder="500" {...register('feePerClass')} />
+                        </div>
+                        <div className="space-y-1">
+                            <Label>Start Date</Label>
+                            <Input type="date" {...register('startDate', { required: 'Required' })} />
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-2">
+                        <Button variant="outline" type="button" onClick={onClose}>Cancel</Button>
+                        <Button
+                            type="submit"
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                            disabled={createStudent.isPending}
+                        >
+                            {createStudent.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            Confirm Assignment
+                        </Button>
+                    </div>
+                </form>
+            </DialogContent>
+        </Dialog>
     );
 }

@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { User, Save, CheckCircle, Camera, Loader2 } from 'lucide-react';
+import { User, Save, CheckCircle, Camera, Loader2, Video } from 'lucide-react';
 
 const profileSchema = z.object({
     name: z.string().min(2, 'Name required'),
@@ -23,6 +23,7 @@ const profileSchema = z.object({
     qualification: z.string().optional(),
     experience: z.string().optional(),
     bio: z.string().optional(),
+    googleMeetLink: z.string().url('Must be a valid URL').or(z.literal('')).optional(),
 });
 type ProfileForm = z.infer<typeof profileSchema>;
 
@@ -44,6 +45,7 @@ export default function ProfilePage() {
             qualification: teacher?.qualification ?? '',
             experience: teacher?.experience !== undefined ? String(teacher.experience) : '',
             bio: teacher?.bio ?? '',
+            googleMeetLink: teacher?.googleMeetLink ?? '',
         },
     });
 
@@ -57,6 +59,7 @@ export default function ProfilePage() {
             qualification: data.qualification,
             experience: data.experience ? parseInt(data.experience) : undefined,
             bio: data.bio,
+            googleMeetLink: data.googleMeetLink,
         });
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
@@ -145,14 +148,30 @@ export default function ProfilePage() {
                                 <div className="sm:col-span-2 space-y-1"><Label>Bio</Label>
                                     <Textarea placeholder="Write a short bio about yourself..." rows={4} {...register('bio')} />
                                 </div>
+                                <div className="sm:col-span-2 space-y-1">
+                                    <Label>Google Meet Link</Label>
+                                    <Input placeholder="https://meet.google.com/abc-defg-hij" {...register('googleMeetLink')} />
+                                    {errors.googleMeetLink && <p className="text-xs text-red-500">{errors.googleMeetLink.message}</p>}
+                                    <p className="text-[10px] text-muted-foreground mt-1">This link will be visible to your students on their dashboard.</p>
+                                </div>
                             </div>
-                            <div className="flex items-center justify-between pt-2">
+                            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
                                 {saved && (
                                     <div className="flex items-center gap-2 text-emerald-600 text-sm">
                                         <CheckCircle className="w-4 h-4" /> Profile saved!
                                     </div>
                                 )}
-                                <div className={!saved ? 'ml-auto' : ''}>
+                                <div className={`flex items-center gap-3 ${!saved ? 'ml-auto' : ''}`}>
+                                    {teacher?.googleMeetLink && (
+                                        <Button 
+                                            type="button" 
+                                            variant="outline"
+                                            className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400 gap-2"
+                                            onClick={() => window.open(teacher.googleMeetLink?.startsWith('http') ? teacher.googleMeetLink : `https://${teacher.googleMeetLink}`, '_blank')}
+                                        >
+                                            <Video className="w-4 h-4" /> Start Your Class
+                                        </Button>
+                                    )}
                                     <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white gap-2" disabled={updateTeacher.isPending}>
                                         {updateTeacher.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                                         <Save className="w-4 h-4" /> Save Changes

@@ -14,6 +14,7 @@ export interface AuthUser {
     city?: string;
     subjects?: string[];
     profilePhoto?: string;
+    googleMeetLink?: string;
 }
 
 interface AuthCtx {
@@ -75,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 city: apiUser.city,
                 subjects: apiUser.subjects,
                 profilePhoto: apiUser.profilePhoto,
+                googleMeetLink: apiUser.googleMeetLink,
             };
 
             localStorage.setItem('authToken', data.data.token);

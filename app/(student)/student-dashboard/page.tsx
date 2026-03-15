@@ -6,9 +6,10 @@ import { usePayments } from '@/lib/hooks/usePayments';
 import { useReports } from '@/lib/hooks/useReports';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { BookOpen, DollarSign, CalendarClock, TrendingUp, Loader2, ArrowUpRight } from 'lucide-react';
+import { BookOpen, DollarSign, CalendarClock, TrendingUp, Loader2, ArrowUpRight, Video } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 import type { ApiClass } from '@/lib/hooks/useClasses';
 
 export default function StudentDashboardPage() {
@@ -84,13 +85,26 @@ export default function StudentDashboardPage() {
     return (
         <div className="space-y-6 max-w-7xl mx-auto">
             {/* Page header */}
-            <div>
-                <h1 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>
-                    Welcome back, {user?.name?.split(' ')[0]} 👋
-                </h1>
-                <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
-                    {format(now, 'EEEE, MMMM d, yyyy')} · Here is your learning overview
-                </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>
+                        Welcome back, {user?.name?.split(' ')[0]} 👋
+                    </h1>
+                    <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                        {format(now, 'EEEE, MMMM d, yyyy')} · Here is your learning overview
+                    </p>
+                </div>
+                {upcomingClasses.length > 0 && typeof upcomingClasses[0].teacherId === 'object' && upcomingClasses[0].teacherId.googleMeetLink && (
+                    <a
+                        href={upcomingClasses[0].teacherId.googleMeetLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-lg shadow-emerald-500/20 rounded-xl px-6 h-10 inline-flex items-center justify-center font-medium text-sm transition-all"
+                    >
+                        <Video className="w-4 h-4" />
+                        Join Your Meet
+                    </a>
+                )}
             </div>
 
             {/* Stats grid */}
@@ -130,10 +144,28 @@ export default function StudentDashboardPage() {
                 {/* Upcoming classes */}
                 <Card className="shadow-sm border" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
                     <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                        <CardTitle className="text-base font-semibold">Your Next Classes</CardTitle>
-                        <Link href="/student-schedule" className="text-sm text-emerald-600 hover:underline flex items-center gap-1">
-                            Full Schedule <ArrowUpRight className="w-4 h-4" />
-                        </Link>
+                        <div>
+                            <CardTitle className="text-base font-semibold">Your Next Classes</CardTitle>
+                            <p className="text-xs text-muted-foreground mt-0.5">Quickly access your upcoming sessions</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            {upcomingClasses.length > 0 && typeof upcomingClasses[0].teacherId === 'object' && upcomingClasses[0].teacherId.googleMeetLink && (
+                                <Button 
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400 gap-1.5 h-8 px-3 text-xs"
+                                    onClick={() => {
+                                        const link = (upcomingClasses[0].teacherId as any).googleMeetLink;
+                                        window.open(link.startsWith('http') ? link : `https://${link}`, '_blank');
+                                    }}
+                                >
+                                    <Video className="w-3.5 h-3.5" /> Join Your Class
+                                </Button>
+                            )}
+                            <Link href="/student-schedule" className="text-sm text-emerald-600 hover:underline flex items-center gap-1">
+                                Full Schedule <ArrowUpRight className="w-4 h-4" />
+                            </Link>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-3">
@@ -159,6 +191,19 @@ export default function StudentDashboardPage() {
                                                 {c.duration} mins
                                             </Badge>
                                         </div>
+                                        {typeof c.teacherId === 'object' && c.teacherId.googleMeetLink && (
+                                            <div className="flex-shrink-0 self-center">
+                                                <a
+                                                    href={c.teacherId.googleMeetLink}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 rounded-lg h-9 px-4 inline-flex items-center justify-center font-medium text-xs transition-all"
+                                                >
+                                                    <Video className="w-3.5 h-3.5" />
+                                                    Join Meet
+                                                </a>
+                                            </div>
+                                        )}
                                     </div>
                                 ))
                             )}
@@ -190,7 +235,7 @@ export default function StudentDashboardPage() {
                                             <span className="font-bold text-sm">{latestReport.understandingLevel}</span>
                                         </div>
                                     </div>
-                                    
+
                                     <div className="space-y-3">
                                         <div className="bg-white/60 dark:bg-black/20 p-3 rounded-lg">
                                             <p className="text-xs font-semibold text-indigo-800 dark:text-indigo-300 uppercase tracking-wider mb-1">Topic Covered</p>

@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface ApiReport {
     _id: string;
-    teacherId: string | { _id: string; name: string };
+    teacherId: string | { _id: string; name: string; googleMeetLink?: string };
     studentId: string | { _id: string; name: string };
     subject: string;
     date: string;

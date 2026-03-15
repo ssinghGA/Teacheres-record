@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useClasses } from '@/lib/hooks/useClasses';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Calendar, Clock, BookOpen, Search, User } from 'lucide-react';
+import { Loader2, Calendar, Clock, BookOpen, Search, User, Video, ExternalLink } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { Input } from '@/components/ui/input';
 
@@ -28,11 +29,25 @@ export default function StudentSchedulePage() {
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto">
-            <div>
-                <h1 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>My Schedule</h1>
-                <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
-                    View all your upcoming and past classes
-                </p>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>My Schedule</h1>
+                    <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                        View all your upcoming and past classes
+                    </p>
+                </div>
+                {allClasses.length > 0 && typeof allClasses[0].teacherId === 'object' && allClasses[0].teacherId?.googleMeetLink && (
+                    <Button 
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-lg shadow-emerald-500/20 rounded-xl px-6 h-10 transition-all"
+                        onClick={() => {
+                            const link = (allClasses[0].teacherId as any).googleMeetLink;
+                            window.open(link.startsWith('http') ? link : `https://${link}`, '_blank');
+                        }}
+                    >
+                        <Video className="w-4 h-4" />
+                        Join Your Class
+                    </Button>
+                )}
             </div>
 
             <Card className="shadow-sm border-0" style={{ background: 'var(--card)' }}>
@@ -62,6 +77,7 @@ export default function StudentSchedulePage() {
                                     <th className="px-6 py-4 font-semibold">Topic</th>
                                     <th className="px-6 py-4 font-semibold">Duration</th>
                                     <th className="px-6 py-4 font-semibold text-right">Status</th>
+                                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider">Join Class</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y" style={{ borderColor: 'var(--border)' }}>
@@ -100,7 +116,23 @@ export default function StudentSchedulePage() {
                                                         <div>
                                                             <p className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>{teacherName}</p>
                                                             {typeof c.teacherId === 'object' && c.teacherId !== null && (
-                                                                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{c.teacherId.email}</p>
+                                                                <div className="flex flex-col">
+                                                                    <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{c.teacherId.email}</p>
+                                                                    {typeof c.teacherId === 'object' && c.teacherId !== null && c.teacherId.googleMeetLink ? (
+                                                                        <a 
+                                                                            href={c.teacherId.googleMeetLink.startsWith('http') ? c.teacherId.googleMeetLink : `https://${c.teacherId.googleMeetLink}`} 
+                                                                            target="_blank" 
+                                                                            rel="noopener noreferrer" 
+                                                                            className="text-[10px] text-emerald-600 hover:text-emerald-500 font-medium flex items-center gap-1 mt-1 group"
+                                                                        >
+                                                                            <Video className="w-3 h-3" /> 
+                                                                            <span>Join Meet</span>
+                                                                            <ExternalLink className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                                        </a>
+                                                                    ) : (
+                                                                        <span className="text-[10px] text-amber-600 italic mt-1 font-medium">Link not set</span>
+                                                                    )}
+                                                                </div>
                                                             )}
                                                         </div>
                                                     </div>
@@ -136,6 +168,25 @@ export default function StudentSchedulePage() {
                                                     >
                                                         {c.status}
                                                     </Badge>
+                                                </td>
+
+                                                {/* Join Class */}
+                                                <td className="px-6 py-4 text-right">
+                                                    {typeof c.teacherId === 'object' && c.teacherId !== null && c.teacherId.googleMeetLink ? (
+                                                        <Button 
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400 gap-1.5"
+                                                            onClick={() => {
+                                                                const link = (c.teacherId as any).googleMeetLink;
+                                                                window.open(link.startsWith('http') ? link : `https://${link}`, '_blank');
+                                                            }}
+                                                        >
+                                                            <Video className="w-3.5 h-3.5" /> Join Meet
+                                                        </Button>
+                                                    ) : (
+                                                        <span className="text-[10px] text-muted-foreground italic">Link not set</span>
+                                                    )}
                                                 </td>
                                             </tr>
                                         );

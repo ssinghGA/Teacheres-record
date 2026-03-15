@@ -14,6 +14,7 @@ export interface ApiTeacher {
     experience?: number; // Number in years
     bio?: string;
     profilePhoto?: string;
+    googleMeetLink?: string;
     createdAt?: string;
 }
 

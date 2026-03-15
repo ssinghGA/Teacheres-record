@@ -6,9 +6,10 @@ import { useClasses } from '@/lib/hooks/useClasses';
 import { usePayments } from '@/lib/hooks/usePayments';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, BookOpen, DollarSign, CalendarClock, TrendingUp, ArrowUpRight, Loader2 } from 'lucide-react';
+import { Users, BookOpen, DollarSign, CalendarClock, TrendingUp, ArrowUpRight, Loader2, Video } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 import type { ApiStudent } from '@/lib/hooks/useStudents';
 
 export default function DashboardPage() {
@@ -104,13 +105,26 @@ export default function DashboardPage() {
     return (
         <div className="space-y-6">
             {/* Page header */}
-            <div>
-                <h1 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>
-                    Welcome back, {user?.name?.split(' ')[0]} 👋
-                </h1>
-                <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
-                    {format(now, 'EEEE, MMMM d, yyyy')} · Here&apos;s what&apos;s happening today
-                </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>
+                        Welcome back, {user?.name?.split(' ')[0]} 👋
+                    </h1>
+                    <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                        {format(now, 'EEEE, MMMM d, yyyy')} · Here&apos;s what&apos;s happening today
+                    </p>
+                </div>
+                {user?.role === 'teacher' && user.googleMeetLink && (
+                    <a 
+                        href={user.googleMeetLink.startsWith('http') ? user.googleMeetLink : `https://${user.googleMeetLink}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="bg-blue-600 hover:bg-blue-700 text-white gap-2 shadow-lg shadow-blue-500/20 rounded-xl px-6 h-10 inline-flex items-center justify-center font-medium text-sm transition-all"
+                    >
+                        <Video className="w-4 h-4" />
+                        Start Your Class
+                    </a>
+                )}
             </div>
 
             {/* Stats grid */}
@@ -204,17 +218,27 @@ export default function DashboardPage() {
                                 upcomingClasses.map((c) => (
                                     <div
                                         key={c._id}
-                                        className="flex items-start gap-3 p-3 rounded-xl border"
+                                        className="flex items-start gap-3 p-3 rounded-xl border group relative"
                                         style={{ borderColor: 'var(--border)', background: 'var(--muted)' }}
                                     >
                                         <div className="flex-shrink-0 text-center">
                                             <p className="text-lg font-bold text-blue-600">{new Date(c.date).getDate()}</p>
                                             <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                                                 {format(new Date(c.date), 'MMM')}
-                                            </p>
-                                        </div>
+                                            </p>      </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>{c.topic}</p>
+                                            <div className="flex justify-between items-start">
+                                                <p className="text-sm font-semibold truncate" style={{ color: 'var(--foreground)' }}>{c.topic}</p>
+                                                {user?.googleMeetLink && (
+                                                    <button 
+                                                        onClick={() => window.open(user.googleMeetLink?.startsWith('http') ? user.googleMeetLink : `https://${user.googleMeetLink}`, '_blank')}
+                                                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-md hover:bg-blue-200"
+                                                        title="Start Class"
+                                                    >
+                                                        <Video className="w-3.5 h-3.5" />
+                                                    </button>
+                                                )}
+                                            </div>
                                             <p className="text-xs truncate" style={{ color: 'var(--muted-foreground)' }}>
                                                 {getStudentName(c.studentId as unknown as ApiStudent)} · {c.time}
                                             </p>

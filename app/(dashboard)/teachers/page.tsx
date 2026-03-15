@@ -1,16 +1,20 @@
 'use client';
 
 import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { useTeachers, type ApiTeacher } from '@/lib/hooks/useTeachers';
 import { useStudents } from '@/lib/hooks/useStudents';
 import { useClasses } from '@/lib/hooks/useClasses';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, GraduationCap, Loader2, AlertCircle } from 'lucide-react';
+import { Search, GraduationCap, Loader2, AlertCircle, Plus } from 'lucide-react';
 import Link from 'next/link';
+import { CreateUserDialog } from '@/components/dashboard/CreateUserDialog';
 
 export default function TeachersPage() {
+    const { user } = useAuth();
     const [search, setSearch] = useState('');
 
     const { data: teachers, isLoading, isError, error } = useTeachers();
@@ -43,9 +47,22 @@ export default function TeachersPage() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>Teachers</h1>
-                <p className="text-sm mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{filtered.length} teacher{filtered.length !== 1 ? 's' : ''}</p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>Teachers</h1>
+                    <p className="text-sm mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{filtered.length} teacher{filtered.length !== 1 ? 's' : ''}</p>
+                </div>
+                {(user?.role === 'super_admin' || user?.role === 'admin') && (
+                    <CreateUserDialog 
+                        defaultRole="teacher"
+                        onSuccess={() => {}}
+                        trigger={
+                            <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2 shadow-lg shadow-blue-500/20 rounded-xl px-5 transition-all">
+                                <Plus className="w-4 h-4" /> Add Teacher
+                            </Button>
+                        }
+                    />
+                )}
             </div>
 
             <Card className="shadow-sm border" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>

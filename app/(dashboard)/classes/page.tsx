@@ -4,7 +4,7 @@ import { useTeachers } from '@/lib/hooks/useTeachers';
 import { useClasses } from '@/lib/hooks/useClasses';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { BookOpen, Loader2, AlertCircle } from 'lucide-react';
+import { BookOpen, Loader2, AlertCircle, Video } from 'lucide-react';
 import { format } from 'date-fns';
 import type { ApiClass } from '@/lib/hooks/useClasses';
 
@@ -61,7 +61,20 @@ export default function AdminClassesPage() {
                                 {classes.map((c, i) => (
                                     <tr key={c._id} className="hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
                                         style={{ borderBottom: i < classes.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                                        <td className="px-4 py-3 font-medium" style={{ color: 'var(--foreground)' }}>{getTeacherName(c)}</td>
+                                        <td className="px-4 py-3 font-medium" style={{ color: 'var(--foreground)' }}>
+                                            <div className="flex items-center gap-2">
+                                                {getTeacherName(c)}
+                                                {typeof c.teacherId === 'object' && c.teacherId.googleMeetLink && (
+                                                    <button 
+                                                        onClick={() => window.open((c.teacherId as any).googleMeetLink?.startsWith('http') ? (c.teacherId as any).googleMeetLink : `https://${(c.teacherId as any).googleMeetLink}`, '_blank')}
+                                                        className="p-1 hover:bg-emerald-50 text-emerald-600 rounded-md transition-colors"
+                                                        title="Join Google Meet"
+                                                    >
+                                                        <Video className="w-3.5 h-3.5" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
                                         <td className="px-4 py-3" style={{ color: 'var(--muted-foreground)' }}>{getStudentName(c)}</td>
                                         <td className="px-4 py-3" style={{ color: 'var(--muted-foreground)' }}>{c.subject}</td>
                                         <td className="px-4 py-3" style={{ color: 'var(--foreground)' }}>{c.topic}</td>

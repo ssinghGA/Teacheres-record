@@ -20,12 +20,6 @@ const schema = z.object({
 
 type LoginForm = z.infer<typeof schema>;
 
-const demoAccounts = [
-    { role: 'Super Admin', email: 'superadmin@school.com', password: 'admin123', color: 'purple' },
-    { role: 'Admin', email: 'admin@school.com', password: 'admin123', color: 'blue' },
-    { role: 'Teacher', email: 'teacher@school.com', password: 'teacher123', color: 'green' },
-];
-
 export default function LoginPage() {
     const { login, isAuthenticated, user } = useAuth();
     const router = useRouter();
@@ -33,7 +27,7 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const { register, handleSubmit, setValue, formState: { errors } } = useForm<LoginForm>({
+    const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
         resolver: zodResolver(schema),
     });
 
@@ -51,132 +45,114 @@ export default function LoginPage() {
             if (!success) {
                 setError('Invalid email or password. Please try again.');
             }
-            // `useEffect` will handle the successful redirect once context updates
         } finally {
             setLoading(false);
         }
     };
 
-    const fillDemo = (email: string, password: string) => {
-        setValue('email', email);
-        setValue('password', password);
-    };
-
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
-            style={{ background: 'linear-gradient(135deg, #24282dff 0%, #24282dff 50%, #24282dff 100%)' }}>
-            {/* Background decoration */}
+        <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-background">
+            {/* Background decoration - subtle and professional */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-blue-400/20 blur-3xl" />
-                <div className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-blue-600/20 blur-3xl" />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-blue-200/10 blur-3xl" />
+                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/10 blur-[120px]" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-primary/10 blur-[120px]" />
             </div>
 
-            <div className="w-full max-w-md relative animate-fade-in">
+            <div className="w-full max-w-[400px] relative animate-fade-in">
                 {/* Header */}
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 shadow-lg shadow-blue-500/30 mb-4">
-                        <School className="w-8 h-8 text-white" />
-                    </div>
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">TeacherPro</h1>
-                    <p className="mt-1 text-gray-600 dark:text-gray-300">Teacher Management Dashboard</p>
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                        SRV <span className="text-primary">Learning</span>
+                    </h1>
+                    <p className="mt-2 text-sm text-muted-foreground uppercase tracking-widest font-medium">
+                        Teacher Management Dashboard
+                    </p>
                 </div>
 
                 {/* Login card */}
-                <Card className="shadow-2xl shadow-blue-500/10 border border-white/40 dark:border-white/10 bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-xl text-gray-900 dark:text-white">Welcome back</CardTitle>
-                        <CardDescription className="text-gray-600 dark:text-gray-400">Sign in to your account to continue</CardDescription>
+                <Card className="border border-border bg-card/80 backdrop-blur-xl shadow-xl">
+                    <CardHeader className="space-y-1 pt-8">
+                        <CardTitle className="text-xl font-bold">Welcome back</CardTitle>
+                        <CardDescription>
+                            Sign in to your account to continue
+                        </CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pb-8">
                         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                            <div className="space-y-1.5">
-                                <Label htmlFor="email">Email Address</Label>
+                            <div className="space-y-2">
+                                <Label htmlFor="email" className="text-xs font-medium text-muted-foreground">
+                                    Email Address
+                                </Label>
                                 <Input
                                     id="email"
                                     type="email"
                                     placeholder="you@school.com"
-                                    className="h-10"
+                                    className="h-11 bg-background/50 border-border focus:ring-1 focus:ring-primary transition-all"
                                     {...register('email')}
                                 />
                                 {errors.email && (
-                                    <p className="text-xs text-red-500">{errors.email.message}</p>
+                                    <p className="text-xs text-destructive mt-1">{errors.email.message}</p>
                                 )}
                             </div>
 
-                            <div className="space-y-1.5">
-                                <Label htmlFor="password">Password</Label>
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <Label htmlFor="password" className="text-xs font-medium text-muted-foreground">
+                                        Password
+                                    </Label>
+                                    <button type="button" className="text-xs text-primary hover:underline underline-offset-4">
+                                        Forgot password?
+                                    </button>
+                                </div>
                                 <div className="relative">
                                     <Input
                                         id="password"
                                         type={showPassword ? 'text' : 'password'}
                                         placeholder="••••••••"
-                                        className="h-10 pr-10"
+                                        className="h-11 bg-background/50 border-border focus:ring-1 focus:ring-primary transition-all pr-10"
                                         {...register('password')}
                                     />
                                     <button
                                         type="button"
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                        className="absolute right-0 top-0 h-full px-3 text-muted-foreground hover:text-foreground transition-colors"
                                         onClick={() => setShowPassword(!showPassword)}
                                     >
                                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                     </button>
                                 </div>
                                 {errors.password && (
-                                    <p className="text-xs text-red-500">{errors.password.message}</p>
+                                    <p className="text-xs text-destructive mt-1">{errors.password.message}</p>
                                 )}
                             </div>
 
                             {error && (
-                                <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
+                                <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2 text-xs font-medium text-destructive">
                                     {error}
                                 </div>
                             )}
 
                             <Button
                                 type="submit"
-                                className="w-full h-10 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md shadow-blue-500/20"
+                                className="w-full h-11 text-sm font-semibold bg-primary hover:bg-primary-dark text-white shadow-md transition-all active:scale-[0.99]"
                                 disabled={loading}
                             >
                                 {loading ? (
-                                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Signing in...</>
+                                    <span className="flex items-center gap-2">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        Signing In...
+                                    </span>
                                 ) : (
                                     'Sign In'
                                 )}
                             </Button>
                         </form>
-
-                        {/* Demo accounts */}
-                        <div className="mt-6">
-                            <div className="relative">
-                                <div className="absolute inset-0 flex items-center">
-                                    <div className="w-full border-t border-gray-300 dark:border-gray-700" />
-                                </div>
-                                <div className="relative flex justify-center text-xs">
-                                    <span className="px-2 font-medium bg-transparent text-gray-500 dark:text-gray-400">Demo Accounts</span>
-                                </div>
-                            </div>
-                            <div className="mt-4 grid gap-2">
-                                {demoAccounts.map((acc) => (
-                                    <button
-                                        key={acc.role}
-                                        type="button"
-                                        onClick={() => fillDemo(acc.email, acc.password)}
-                                        className="flex items-center justify-between w-full text-left px-3 py-2 rounded-lg border border-gray-200/50 dark:border-gray-700/50 hover:border-blue-300 hover:bg-white/80 dark:hover:bg-gray-800/80 transition-all text-xs group"
-                                    >
-                                        <div>
-                                            <span className={`font-semibold ${acc.color === 'purple' ? 'text-purple-600 dark:text-purple-400' :
-                                                acc.color === 'blue' ? 'text-blue-600 dark:text-blue-400' : 'text-green-600 dark:text-green-400'
-                                                }`}>{acc.role}</span>
-                                            <p className="text-gray-500 dark:text-gray-400">{acc.email}</p>
-                                        </div>
-                                        <span className="text-gray-400 group-hover:text-blue-500 font-mono">→</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
                     </CardContent>
                 </Card>
+
+                {/* Footer info */}
+                <p className="mt-8 text-center text-xs text-muted-foreground">
+                    &copy; {new Date().getFullYear()} TeacherPro Systems. All rights reserved.
+                </p>
             </div>
         </div>
     );

@@ -98,11 +98,11 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 {/* Logo */}
                 <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: 'var(--sidebar-border)' }}>
                     <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
+                        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
                             <School className="w-5 h-5 text-white" />
                         </div>
                         <div>
-                            <span className="font-bold text-base text-blue-600">SRV Learning</span>
+                            <span className="font-bold text-base text-primary">SRV Learning</span>
                             <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Teacher Management System</p>
                         </div>
                     </div>
@@ -113,9 +113,9 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
                 {/* User info */}
                 <div className="p-4">
-                    <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'var(--accent)' }}>
-                        <Avatar className="w-10 h-10 ring-2 ring-blue-200 dark:ring-blue-800">
-                            <AvatarFallback className="bg-blue-600 text-white text-sm font-semibold">
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-accent/30">
+                        <Avatar className="w-10 h-10 border border-border">
+                            <AvatarFallback className="bg-primary text-white text-sm font-semibold">
                                 {user ? getInitials(user.name) : 'U'}
                             </AvatarFallback>
                         </Avatar>
@@ -145,10 +145,10 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                                 onClick={onClose}
                                 className={cn(
                                     'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
-                                    'hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/20 dark:hover:text-blue-300',
+                                    'hover:bg-accent/50 hover:text-foreground',
                                     isActive
-                                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 shadow-sm'
-                                        : '',
+                                        ? 'bg-primary/10 text-primary border border-primary/20'
+                                        : 'text-muted-foreground',
                                 )}
                                 style={!isActive ? { color: 'var(--sidebar-text)' } : {}}
                             >

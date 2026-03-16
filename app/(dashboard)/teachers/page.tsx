@@ -2,16 +2,21 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTeachers, type ApiTeacher } from '@/lib/hooks/useTeachers';
+import { useTeachers, type ApiTeacher, useDeleteTeacher } from '@/lib/hooks/useTeachers';
 import { useStudents } from '@/lib/hooks/useStudents';
 import { useClasses } from '@/lib/hooks/useClasses';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, GraduationCap, Loader2, AlertCircle, Plus } from 'lucide-react';
+import { Search, GraduationCap, Loader2, AlertCircle, Plus, Video, Users, MoreVertical, ExternalLink, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { CreateUserDialog } from '@/components/dashboard/CreateUserDialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { format } from 'date-fns';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export default function TeachersPage() {
     const { user } = useAuth();
@@ -20,105 +25,293 @@ export default function TeachersPage() {
     const { data: teachers, isLoading, isError, error } = useTeachers();
     const { data: allStudents } = useStudents();
     const { data: allClasses } = useClasses();
+    const deleteTeacher = useDeleteTeacher();
 
-    const filtered = (teachers ?? []).filter(t =>
+    const [editingTeacher, setEditingTeacher] = useState<ApiTeacher | null>(null);
+    const [deleteTeacherConfirm, setDeleteTeacherConfirm] = useState<ApiTeacher | null>(null);
+
+    const handleDelete = async () => {
+        if (deleteTeacherConfirm) {
+            try {
+                await deleteTeacher.mutateAsync(deleteTeacherConfirm._id);
+                setDeleteTeacherConfirm(null);
+            } catch (err) {
+                alert(err instanceof Error ? err.message : 'Failed to delete teacher');
+            }
+        }
+    };
+
+    const filtered = (teachers ?? []).filter((t: ApiTeacher) =>
         t.name.toLowerCase().includes(search.toLowerCase()) ||
         (t.email ?? '').toLowerCase().includes(search.toLowerCase()) ||
-        (t.subjects ?? []).some(s => s.toLowerCase().includes(search.toLowerCase()))
+        (t.subjects ?? []).some((s: string) => s.toLowerCase().includes(search.toLowerCase()))
     );
 
     const getTeacherStudentCount = (tid: string) =>
-        (allStudents?.students ?? []).filter(s =>
+        (allStudents?.students ?? []).filter((s: any) =>
             typeof s.teacherId === 'string' ? s.teacherId === tid : (s.teacherId as { _id: string })._id === tid
         ).length;
 
     const getTeacherClassCount = (tid: string) =>
-        (allClasses?.classes ?? []).filter(c =>
+        (allClasses?.classes ?? []).filter((c: any) =>
             typeof c.teacherId === 'string' ? c.teacherId === tid : (c.teacherId as { _id: string })._id === tid
         ).length;
 
     const getTeacherEarnings = (tid: string) =>
         (allClasses?.classes ?? [])
-            .filter(c => (typeof c.teacherId === 'string' ? c.teacherId === tid : (c.teacherId as { _id: string })._id === tid) && c.status === 'completed')
-            .reduce((s, c) => s + c.amount, 0);
+            .filter((c: any) => (typeof c.teacherId === 'string' ? c.teacherId === tid : (c.teacherId as { _id: string })._id === tid) && c.status === 'completed')
+            .reduce((s: number, c: any) => s + c.amount, 0);
 
     if (isLoading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>;
     if (isError) return <div className="flex items-center justify-center py-20 gap-2 text-red-500"><AlertCircle className="w-5 h-5" /><span className="text-sm">{(error as Error).message}</span></div>;
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>Teachers</h1>
-                    <p className="text-sm mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{filtered.length} teacher{filtered.length !== 1 ? 's' : ''}</p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>Teachers</h1>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+                            {filtered.length} teacher{filtered.length !== 1 ? 's' : ''}
+                        </p>
+                    </div>
+
+                    {/* Compact Search */}
+                    <div className="hidden md:flex items-center gap-2 ml-4">
+                        <div className="relative w-72">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: 'var(--muted-foreground)' }} />
+                            <Input
+                                placeholder="Search Teachers..."
+                                className="pl-8 h-9 text-xs bg-muted/20 border-border/50 focus:ring-1 focus:ring-blue-500/50"
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                            />
+                        </div>
+                    </div>
                 </div>
-                {(user?.role === 'super_admin' || user?.role === 'admin') && (
-                    <CreateUserDialog 
-                        defaultRole="teacher"
-                        onSuccess={() => {}}
-                        trigger={
-                            <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2 shadow-lg shadow-blue-500/20 rounded-xl px-5 transition-all">
-                                <Plus className="w-4 h-4" /> Add Teacher
-                            </Button>
-                        }
-                    />
-                )}
+
+                <div className="flex items-center gap-2">
+                    {/* Mobile Search - visible only on small screens */}
+                    <div className="md:hidden relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                        <Input
+                            placeholder="Search..."
+                            className="pl-8 h-9 text-xs"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                        />
+                    </div>
+
+                    {(user?.role === 'super_admin' || user?.role === 'admin') && (
+                        <CreateUserDialog
+                            defaultRole="teacher"
+                            onSuccess={() => { }}
+                            trigger={
+                                <Button className="bg-primary hover:bg-primary/90 text-white gap-2 h-9 px-4 text-xs font-semibold">
+                                    <Plus className="w-4 h-4" /> Add Teacher
+                                </Button>
+                            }
+                        />
+                    )}
+                </div>
             </div>
 
-            <Card className="shadow-sm border" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-                <CardContent className="p-4">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
-                        <Input placeholder="Search teachers by name, email, or subject..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
-                    </div>
-                </CardContent>
+            <Card className="shadow-sm bg-card border border-border overflow-hidden">
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <Users className="w-4 h-4 text-primary" /> All Teachers
+                    </CardTitle>
+                </CardHeader>
+                <div className="max-h-[600px] overflow-y-auto scrollbar-hide">
+                    <Table className="w-full text-sm">
+                        <TableHeader>
+                            <TableRow className="bg-muted/80 hover:bg-muted/80 border-b border-border">
+                                <TableHead className="px-4 py-3 text-xs font-semibold text-muted-foreground">Teacher</TableHead>
+                                <TableHead className="px-4 py-3 text-xs font-semibold text-muted-foreground">Email / City</TableHead>
+                                <TableHead className="px-4 py-3 text-xs font-semibold text-muted-foreground">Subjects</TableHead>
+                                <TableHead className="px-4 py-3 text-xs font-semibold text-muted-foreground text-center">Students</TableHead>
+                                <TableHead className="px-4 py-3 text-xs font-semibold text-muted-foreground text-center">Classes</TableHead>
+                                <TableHead className="px-4 py-3 text-xs font-semibold text-muted-foreground">Earnings</TableHead>
+                                <TableHead className="px-4 py-3 text-xs font-semibold text-muted-foreground text-center">Google Meet</TableHead>
+                                <TableHead className="px-4 py-3 text-xs font-semibold text-muted-foreground text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {filtered.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={8} className="h-32 text-center">
+                                        <div className="flex flex-col items-center justify-center text-muted-foreground">
+                                            <GraduationCap className="w-8 h-8 mb-2 opacity-20" />
+                                            <p>No teachers found</p>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                filtered.map(t => {
+                                    const studentCount = getTeacherStudentCount(t._id);
+                                    const classCount = getTeacherClassCount(t._id);
+                                    const earnings = getTeacherEarnings(t._id);
+                                    return (
+                                        <TableRow key={t._id} className="border-b border-border/40 hover:bg-accent/50 transition-colors">
+                                            <TableCell className="px-4 py-3">
+                                                <div className="flex items-center gap-3">
+                                                    <Avatar className="h-9 w-9">
+                                                        <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
+                                                            {t.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                    <div className="flex flex-col">
+                                                        <Link href={`/teachers/${t._id}`} className="font-semibold text-sm hover:text-blue-600 transition-colors">
+                                                            {t.name}
+                                                        </Link>
+                                                        <span className="text-[10px] text-muted-foreground">Joined {t.createdAt ? format(new Date(t.createdAt), 'MMM yyyy') : 'N/A'}</span>
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="px-4 py-3">
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-medium">{t.email}</span>
+                                                    <span className="text-[10px] text-muted-foreground">{t.city || 'N/A'}</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="px-4 py-3">
+                                                <div className="flex flex-wrap gap-1">
+                                                    {(t.subjects ?? []).slice(0, 2).map(s => (
+                                                        <Badge key={s} className="text-[10px] bg-blue-50 text-blue-600 dark:bg-blue-900/20 border-0">{s}</Badge>
+                                                    ))}
+                                                    {(t.subjects ?? []).length > 2 && (
+                                                        <span className="text-[10px] text-muted-foreground">+{((t.subjects ?? []).length - 2)}</span>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="px-4 py-3 text-center">
+                                                <span className="text-sm font-bold">{studentCount}</span>
+                                            </TableCell>
+                                            <TableCell className="px-4 py-3 text-center">
+                                                <span className="text-sm font-bold">{classCount}</span>
+                                            </TableCell>
+                                            <TableCell className="px-4 py-3">
+                                                <span className="font-semibold text-sm text-emerald-600">₹{(earnings / 1000).toFixed(1)}k</span>
+                                            </TableCell>
+                                            <TableCell className="px-4 py-3 text-center">
+                                                {t.googleMeetLink ? (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-8 w-8 p-0 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 hover:text-emerald-700 border border-emerald-500/10 rounded-full mx-auto"
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            window.open(t.googleMeetLink?.startsWith('http') ? t.googleMeetLink : `https://${t.googleMeetLink}`, '_blank');
+                                                        }}
+                                                        title="Join Google Meet"
+                                                    >
+                                                        <Video className="w-4 h-4" />
+                                                    </Button>
+                                                ) : (
+                                                    <span className="text-[10px] text-muted-foreground">-</span>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="px-4 py-3 text-right">
+                                                <div className="flex items-center justify-end gap-1">
+                                                    {(user?.role === 'super_admin' || user?.role === 'admin') && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 w-8 p-0 text-primary hover:bg-primary/10"
+                                                            onClick={() => setEditingTeacher(t)}
+                                                            title="Edit Teacher"
+                                                        >
+                                                            <Pencil className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger className="h-8 w-8 p-0 flex items-center justify-center hover:bg-muted rounded-md transition-colors outline-none text-black">
+                                                            <MoreVertical className="h-4 w-4" />
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" className="w-40">
+                                                            <Link href={`/teachers/${t._id}`}>
+                                                                <DropdownMenuItem className="cursor-pointer gap-2">
+                                                                    <ExternalLink className="w-3.5 h-3.5" /> View Profile
+                                                                </DropdownMenuItem>
+                                                            </Link>
+                                                            {(user?.role === 'super_admin' || user?.role === 'admin') && (
+                                                                <>
+                                                                    <DropdownMenuItem onClick={() => setEditingTeacher(t)} className="cursor-pointer gap-2">
+                                                                        <Pencil className="w-3.5 h-3.5" /> Edit Teacher
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem
+                                                                        onClick={() => setDeleteTeacherConfirm(t)}
+                                                                        className="cursor-pointer gap-2 text-red-600 focus:text-red-600 focus:bg-red-50"
+                                                                    >
+                                                                        <Trash2 className="w-3.5 h-3.5" /> Delete Teacher
+                                                                    </DropdownMenuItem>
+                                                                </>
+                                                            )}
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })
+                            )}
+                        </TableBody>
+                        {/* 
+                        {filtered.length > 0 && (
+                            <tfoot>
+                                <tr className="bg-muted/20 border-t-2 border-border/40 font-semibold">
+                                    <td colSpan={3} className="px-4 py-3 text-xs uppercase tracking-wider text-muted-foreground">Total Summary</td>
+                                    <td className="px-4 py-3 text-center">{(filtered ?? []).reduce((s, t) => s + getTeacherStudentCount(t._id), 0)}</td>
+                                    <td className="px-4 py-3 text-center">{(filtered ?? []).reduce((s, t) => s + getTeacherClassCount(t._id), 0)}</td>
+                                    <td className="px-4 py-3 text-emerald-600">₹{((filtered ?? []).reduce((s, t) => s + getTeacherEarnings(t._id), 0) / 1000).toFixed(1)}k Total</td>
+                                    <td colSpan={2}></td>
+                                </tr>
+                            </tfoot>
+                        )}
+                        */}
+                    </Table>
+                </div>
             </Card>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {filtered.map(t => {
-                    const studentCount = getTeacherStudentCount(t._id);
-                    const classCount = getTeacherClassCount(t._id);
-                    const earnings = getTeacherEarnings(t._id);
-                    return (
-                        <Link key={t._id} href={`/teachers/${t._id}`}>
-                            <Card className="shadow-sm border hover:shadow-md hover:border-blue-200 dark:hover:border-blue-800 transition-all cursor-pointer group"
-                                style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-                                <CardContent className="p-5">
-                                    <div className="flex items-start gap-3 mb-4">
-                                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-400 to-blue-700 flex items-center justify-center text-white font-bold text-lg shadow-md shadow-blue-500/20">
-                                            {t.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="font-semibold group-hover:text-blue-600 transition-colors truncate" style={{ color: 'var(--foreground)' }}>{t.name}</p>
-                                            <p className="text-xs truncate" style={{ color: 'var(--muted-foreground)' }}>{t.email}</p>
-                                            {t.city && <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{t.city}</p>}
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-wrap gap-1 mb-3">
-                                        {(t.subjects ?? []).slice(0, 3).map(s => (
-                                            <Badge key={s} className="text-xs bg-blue-50 text-blue-600 dark:bg-blue-900/20 border-0">{s}</Badge>
-                                        ))}
-                                    </div>
-                                    <div className="grid grid-cols-3 gap-2 pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
-                                        {[{ label: 'Students', value: studentCount }, { label: 'Classes', value: classCount }, { label: 'Earnings', value: `₹${(earnings / 1000).toFixed(1)}k` }].map(stat => (
-                                            <div key={stat.label} className="text-center">
-                                                <p className="font-bold text-sm" style={{ color: 'var(--foreground)' }}>{stat.value}</p>
-                                                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{stat.label}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </Link>
-                    );
-                })}
-                {filtered.length === 0 && (
-                    <div className="col-span-full text-center py-12">
-                        <GraduationCap className="w-8 h-8 mx-auto mb-2" style={{ color: 'var(--muted-foreground)' }} />
-                        <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>No teachers found</p>
+            {/* Central Edit Dialog */}
+            {editingTeacher && (
+                <CreateUserDialog
+                    open={!!editingTeacher}
+                    onOpenChange={(open) => !open && setEditingTeacher(null)}
+                    initialData={editingTeacher}
+                    onSuccess={() => setEditingTeacher(null)}
+                />
+            )}
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={!!deleteTeacherConfirm} onOpenChange={(open) => !open && setDeleteTeacherConfirm(null)}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-red-600">
+                            <Trash2 className="w-5 h-5" /> Delete Teacher?
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <p className="text-sm text-gray-600">
+                            Are you sure you want to delete <strong>{deleteTeacherConfirm?.name}</strong>? This action cannot be undone and will remove all associated records.
+                        </p>
                     </div>
-                )}
-            </div>
+                    <div className="flex justify-end gap-3 pt-2">
+                        <Button variant="ghost" onClick={() => setDeleteTeacherConfirm(null)} className="font-semibold text-gray-500 hover:bg-gray-50">
+                            Cancel
+                        </Button>
+                        <Button
+                            className="bg-red-600 hover:bg-red-700 text-white font-bold px-6 shadow-lg shadow-red-500/20"
+                            onClick={handleDelete}
+                            disabled={deleteTeacher.isPending}
+                        >
+                            {deleteTeacher.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            Delete Permanently
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

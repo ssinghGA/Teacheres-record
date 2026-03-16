@@ -41,7 +41,7 @@ export default function ClassTable({
             <div className="overflow-x-auto flex-1">
                 <table className="w-full text-sm">
                     <thead>
-                        <tr className="bg-muted border-b border-border">
+                        <tr className="bg-muted/50 border-b border-border/40">
                             {['Student', 'Subject', 'Topic', 'Date & Time', 'Duration', 'Amount', 'Status'].map(h => (
                                 <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">{h}</th>
                             ))}
@@ -52,7 +52,7 @@ export default function ClassTable({
                             <tr
                                 key={c._id}
                                 onClick={() => onRowClick(c)}
-                                className="group hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors cursor-pointer border-b border-border last:border-0"
+                                className="group hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors cursor-pointer border-b border-border/40 last:border-0"
                             >
                                 <td className="px-4 py-3">
                                     <div className="flex items-center gap-2">
@@ -83,6 +83,13 @@ export default function ClassTable({
                                     <BookOpen className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
                                     <p className="text-sm text-muted-foreground">No classes found</p>
                                 </td>
+                            </tr>
+                        )}
+                        {data.length > 0 && (
+                            <tr className="bg-muted/20 border-t-2 border-border/40 font-semibold">
+                                <td colSpan={5} className="px-4 py-3 text-xs uppercase tracking-wider text-muted-foreground">Total Summary</td>
+                                <td className="px-4 py-3 text-emerald-600">₹{data.reduce((acc, curr) => acc + curr.amount, 0).toLocaleString('en-IN')}</td>
+                                <td></td>
                             </tr>
                         )}
                     </tbody>

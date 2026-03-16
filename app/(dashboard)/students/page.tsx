@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useStudents, useCreateStudent, useUpdateStudent, useDeleteStudent, useCheckStudentEmail, type ApiStudent } from '@/lib/hooks/useStudents';
 import { useTeachers } from '@/lib/hooks/useTeachers';
 import { useClasses } from '@/lib/hooks/useClasses';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Search, Pencil, Trash2, Users, Loader2, AlertCircle, CheckCircle2, Info, MoreVertical, Calendar, Clock } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Users, Loader2, AlertCircle, CheckCircle2, Info, MoreVertical, Calendar, Clock, Video } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 
@@ -176,53 +176,76 @@ export default function StudentsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>
-                        {user?.role === 'teacher' ? 'My Students' : 'All Students'}
-                    </h1>
-                    <p className="text-sm mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-                        {filtered.length} student{filtered.length !== 1 ? 's' : ''}
-                    </p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>
+                            {user?.role === 'teacher' ? 'My Students' : 'All Students'}
+                        </h1>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+                            {filtered.length} student{filtered.length !== 1 ? 's' : ''}
+                        </p>
+                    </div>
+                    
+                    {/* Compact Search & Filter */}
+                    <div className="hidden md:flex items-center gap-2 ml-4">
+                        <div className="relative w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: 'var(--muted-foreground)' }} />
+                            <Input 
+                                placeholder="Search students..." 
+                                className="pl-8 h-9 text-xs bg-muted/20 border-border/50 focus:ring-1 focus:ring-blue-500/50" 
+                                value={search} 
+                                onChange={e => setSearch(e.target.value)} 
+                            />
+                        </div>
+                        <Select value={statusFilter} onValueChange={v => setStatusFilter(v ?? 'all')}>
+                            <SelectTrigger className="w-32 h-9 text-xs bg-muted/20 border-border/50"><SelectValue placeholder="Status" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Status</SelectItem>
+                                <SelectItem value="active">Active</SelectItem>
+                                <SelectItem value="inactive">Inactive</SelectItem>
+                                <SelectItem value="pending">Pending</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
-                <Button onClick={openAdd} className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
-                    <Plus className="w-4 h-4" /> Add Student
-                </Button>
+                
+                <div className="flex items-center gap-2">
+                    {/* Mobile Search - visible only on small screens */}
+                    <div className="md:hidden relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                        <Input 
+                            placeholder="Search..." 
+                            className="pl-8 h-9 text-xs" 
+                            value={search} 
+                            onChange={e => setSearch(e.target.value)} 
+                        />
+                    </div>
+                    <Button onClick={openAdd} className="bg-primary hover:bg-primary/90 text-white gap-2 h-9 px-4 text-xs font-semibold">
+                        <Plus className="w-4 h-4" /> Add Student
+                    </Button>
+                </div>
             </div>
 
-            {/* Filters */}
-            <Card className="shadow-sm border" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-                <CardContent className="p-4 flex flex-col sm:flex-row gap-3">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
-                        <Input placeholder="Search students..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
-                    </div>
-                    <Select value={statusFilter} onValueChange={v => setStatusFilter(v ?? 'all')}>
-                        <SelectTrigger className="sm:w-36"><SelectValue placeholder="Status" /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All</SelectItem>
-                            <SelectItem value="active">Active</SelectItem>
-                            <SelectItem value="inactive">Inactive</SelectItem>
-                            <SelectItem value="pending">Pending</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </CardContent>
-            </Card>
-
             {/* Students Table */}
-            <Card className="shadow-sm border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-                <div className="overflow-x-auto">
-                    <Table>
+            <Card className="shadow-sm bg-card border border-border overflow-hidden">
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <Users className="w-4 h-4 text-primary" /> My Students
+                    </CardTitle>
+                </CardHeader>
+                <div className="max-h-[600px] overflow-y-auto scrollbar-hide">
+                    <Table className="w-full text-sm">
                         <TableHeader>
-                            <TableRow className="bg-muted/50 hover:bg-muted/50">
-                                <TableHead className="w-[120px]">Date/Time</TableHead>
-                                <TableHead>Student</TableHead>
-                                {(user?.role === 'super_admin' || user?.role === 'admin') && <TableHead>Teacher</TableHead>}
-                                <TableHead>Subject</TableHead>
-                                <TableHead>Fee (₹)</TableHead>
-                                <TableHead className="text-center">Classes</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                            <TableRow className="bg-muted/80 hover:bg-muted/80 border-b border-border">
+                                <TableHead className="px-4 py-3 text-xs font-semibold text-muted-foreground w-[120px]">Date/Time</TableHead>
+                                <TableHead className="px-4 py-3 text-xs font-semibold text-muted-foreground">Student</TableHead>
+                                {(user?.role === 'super_admin' || user?.role === 'admin') && <TableHead className="px-4 py-3 text-xs font-semibold text-muted-foreground">Teacher</TableHead>}
+                                <TableHead className="px-4 py-3 text-xs font-semibold text-muted-foreground">Subject</TableHead>
+                                <TableHead className="px-4 py-3 text-xs font-semibold text-muted-foreground">Fee (₹)</TableHead>
+                                <TableHead className="px-4 py-3 text-xs font-semibold text-muted-foreground text-center">Classes</TableHead>
+                                <TableHead className="px-4 py-3 text-xs font-semibold text-muted-foreground">Status</TableHead>
+                                <TableHead className="px-4 py-3 text-xs font-semibold text-muted-foreground text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -244,8 +267,8 @@ export default function StudentsPage() {
                                     const totalClasses = studentClasses.length;
 
                                     return (
-                                        <TableRow key={s._id} className="hover:bg-muted/50 transition-colors">
-                                            <TableCell>
+                                        <TableRow key={s._id} className="border-b border-border/40 hover:bg-accent/50 transition-colors">
+                                            <TableCell className="px-4 py-3">
                                                 <div className="flex flex-col gap-1">
                                                     <div className="flex items-center gap-1.5 text-xs font-medium">
                                                         <Calendar className="w-3.5 h-3.5 text-blue-500" />
@@ -259,10 +282,10 @@ export default function StudentsPage() {
                                                     )}
                                                 </div>
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="px-4 py-3">
                                                 <div className="flex items-center gap-3">
                                                     <Avatar className="h-9 w-9">
-                                                        <AvatarFallback className="bg-blue-100 text-blue-700 font-bold text-xs">
+                                                        <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
                                                             {s.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                                                         </AvatarFallback>
                                                     </Avatar>
@@ -275,33 +298,44 @@ export default function StudentsPage() {
                                                 </div>
                                             </TableCell>
                                             {(user?.role === 'super_admin' || user?.role === 'admin') && (
-                                                <TableCell>
+                                                <TableCell className="px-4 py-3">
                                                     <div className="flex flex-col">
-                                                        <span className="text-sm font-medium">{typeof s.teacherId === 'object' ? s.teacherId.name : 'Unknown'}</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-sm font-medium">{typeof s.teacherId === 'object' ? s.teacherId.name : 'Unknown'}</span>
+                                                            {typeof s.teacherId === 'object' && s.teacherId.googleMeetLink && (
+                                                                <button 
+                                                                    onClick={() => window.open((s.teacherId as any).googleMeetLink?.startsWith('http') ? (s.teacherId as any).googleMeetLink : `https://${(s.teacherId as any).googleMeetLink}`, '_blank')}
+                                                                    className="p-1 hover:bg-emerald-50 text-emerald-600 rounded-md transition-colors"
+                                                                    title="Join Google Meet"
+                                                                >
+                                                                    <Video className="w-3 h-3" />
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                         <span className="text-[10px] text-muted-foreground">ID: {typeof s.teacherId === 'object' ? s.teacherId._id.slice(-6) : 'N/A'}</span>
                                                     </div>
                                                 </TableCell>
                                             )}
-                                            <TableCell>
+                                            <TableCell className="px-4 py-3">
                                                 <Badge variant="secondary" className="bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-0 font-medium">
                                                     {s.subject}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="px-4 py-3">
                                                 <span className="font-semibold text-sm">₹{s.feePerClass || 0}</span>
                                             </TableCell>
-                                            <TableCell className="text-center">
+                                            <TableCell className="px-4 py-3 text-center">
                                                 <div className="flex flex-col">
                                                     <span className="text-sm font-bold">{completedClasses} / {totalClasses}</span>
                                                     <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Done</span>
                                                 </div>
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="px-4 py-3">
                                                 <Badge className={`text-[10px] uppercase tracking-wider font-bold border-0 ${statusBadge(s.status)}`}>
                                                     {s.status}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell className="text-right">
+                                            <TableCell className="px-4 py-3 text-right">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger className="h-8 w-8 p-0 flex items-center justify-center hover:bg-muted rounded-md transition-colors outline-none text-black mx-auto mr-0">
                                                         <MoreVertical className="h-4 w-4" />
@@ -329,6 +363,16 @@ export default function StudentsPage() {
                                 })
                             )}
                         </TableBody>
+                        {filtered.length > 0 && (
+                            <tfoot>
+                                <tr className="bg-muted/20 border-t-2 border-border/40 font-semibold">
+                                    <td colSpan={4} className="px-4 py-3 text-xs uppercase tracking-wider text-muted-foreground">Total Summary</td>
+                                    <td className="px-4 py-3 text-emerald-600">₹{filtered.reduce((acc, curr) => acc + (curr.feePerClass || 0), 0).toLocaleString('en-IN')} / class</td>
+                                    <td className="px-4 py-3 text-center">{filtered.length} students</td>
+                                    <td colSpan={2}></td>
+                                </tr>
+                            </tfoot>
+                        )}
                     </Table>
                 </div>
             </Card>

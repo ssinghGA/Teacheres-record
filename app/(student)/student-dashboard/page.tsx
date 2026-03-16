@@ -142,7 +142,7 @@ export default function StudentDashboardPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Upcoming classes */}
-                <Card className="shadow-sm border" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+                <Card className="shadow-sm bg-card border border-border">
                     <CardHeader className="pb-3 flex flex-row items-center justify-between">
                         <div>
                             <CardTitle className="text-base font-semibold">Your Next Classes</CardTitle>
@@ -175,8 +175,7 @@ export default function StudentDashboardPage() {
                                 upcomingClasses.slice(0, 4).map((c) => (
                                     <div
                                         key={c._id}
-                                        className="flex items-start gap-4 p-4 rounded-xl border hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/10 transition-colors"
-                                        style={{ borderColor: 'var(--border)', background: 'var(--muted)' }}
+                                        className="flex items-start gap-4 p-4 rounded-xl border border-border hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/10 transition-colors bg-muted/20"
                                     >
                                         <div className="flex-shrink-0 text-center bg-background rounded-lg p-2 border shadow-sm">
                                             <p className="text-sm font-bold text-emerald-600">{format(new Date(c.date), 'MMM')}</p>
@@ -212,7 +211,7 @@ export default function StudentDashboardPage() {
                 </Card>
 
                 {/* Latest Report / Notes */}
-                <Card className="shadow-sm border" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+                <Card className="shadow-sm bg-card border border-border">
                     <CardHeader className="pb-3 flex flex-row items-center justify-between">
                         <CardTitle className="text-base font-semibold">Latest Progress Report</CardTitle>
                         <Link href="/student-reports" className="text-sm text-emerald-600 hover:underline flex items-center gap-1">
@@ -224,7 +223,7 @@ export default function StudentDashboardPage() {
                             {!latestReport ? (
                                 <p className="text-sm text-center py-6" style={{ color: 'var(--muted-foreground)' }}>No progress reports available yet.</p>
                             ) : (
-                                <div className="p-5 rounded-xl border bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20" style={{ borderColor: 'var(--border)' }}>
+                                <div className="p-5 rounded-xl border border-border bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/10 dark:to-purple-900/10">
                                     <div className="flex justify-between items-start mb-4">
                                         <div>
                                             <h3 className="font-bold text-lg text-indigo-900 dark:text-indigo-200">{latestReport.subject}</h3>

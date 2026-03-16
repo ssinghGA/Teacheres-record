@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiGet, apiPatch, apiPost } from '../api';
+import { apiGet, apiPatch, apiPost, apiDelete } from '../api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface ApiTeacher {
@@ -71,10 +71,23 @@ export function useUpdateTeacher(id: string) {
 }
 
 export function useCreateUser() {
+    const qc = useQueryClient();
     return useMutation({
         mutationFn: (body: {
             name: string; email: string; password: string; role: string;
             phone?: string; city?: string; subjects?: string[]; qualification?: string; experience?: number; bio?: string;
         }) => apiPost<RegisterResponse>('/auth/register', body),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: teacherKeys.all });
+        },
+    });
+}
+export function useDeleteTeacher() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => apiDelete(`/teachers/${id}`),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: teacherKeys.all });
+        },
     });
 }

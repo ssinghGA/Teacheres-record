@@ -74,14 +74,14 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
                 {/* Notifications */}
                 <Button variant="ghost" size="icon" className="rounded-xl relative">
                     <Bell className="w-4 h-4" size={18} />
-                    <span className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full ring-2 ring-background" />
+                    <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full ring-2 ring-background" />
                 </Button>
 
                 {/* Profile dropdown */}
                 <DropdownMenu>
-                    <DropdownMenuTrigger className="relative h-9 w-9 rounded-full outline-none transition-transform hover:scale-105">
-                        <Avatar className="h-9 w-9 ring-2 ring-blue-200 dark:ring-blue-800 focus:ring-blue-500">
-                            <AvatarFallback className="bg-blue-600 text-white text-sm font-semibold">
+                    <DropdownMenuTrigger className="relative h-9 w-9 rounded-full outline-none transition-transform hover:scale-105 border border-border">
+                        <Avatar className="h-9 w-9">
+                            <AvatarFallback className="bg-primary text-white text-sm font-semibold">
                                 {user ? getInitials(user.name) : 'U'}
                             </AvatarFallback>
                         </Avatar>

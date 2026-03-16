@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useCreateUser } from '@/lib/hooks/useTeachers';
+import { useCreateUser, useUpdateTeacher, type ApiTeacher } from '@/lib/hooks/useTeachers';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { UserPlus, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { UserPlus, Eye, EyeOff, Loader2, Users, Shield, GraduationCap, Phone, MapPin, BookOpen, Pencil } from 'lucide-react';
 
 const userSchema = z.object({
     name: z.string().min(2, 'Full name is required'),
@@ -28,39 +28,65 @@ type UserForm = z.infer<typeof userSchema>;
 const roleLabel: Record<string, string> = { super_admin: 'Super Admin', admin: 'Admin', teacher: 'Teacher' };
 
 interface CreateUserDialogProps {
-    trigger?: React.ReactNode;
+    trigger?: React.ReactElement;
     defaultRole?: 'teacher' | 'admin' | 'super_admin';
     onSuccess?: (msg: string) => void;
+    initialData?: ApiTeacher;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }
 
-export function CreateUserDialog({ trigger, defaultRole = 'teacher', onSuccess }: CreateUserDialogProps) {
-    const [open, setOpen] = useState(false);
+export function CreateUserDialog({ trigger, defaultRole = 'teacher', onSuccess, initialData, open: controlledOpen, onOpenChange: setControlledOpen }: CreateUserDialogProps) {
+    const [internalOpen, setInternalOpen] = useState(false);
+    const open = controlledOpen ?? internalOpen;
+    const setOpen = setControlledOpen ?? setInternalOpen;
+
     const [showPassword, setShowPassword] = useState(false);
     const [apiError, setApiError] = useState('');
-    
+
     const createUser = useCreateUser();
+    const updateTeacher = useUpdateTeacher(initialData?._id ?? '');
 
     const { register, handleSubmit, reset, control, formState: { errors } } = useForm<UserForm>({
         resolver: zodResolver(userSchema),
-        defaultValues: { role: defaultRole },
+        defaultValues: {
+            name: initialData?.name ?? '',
+            email: initialData?.email ?? '',
+            role: initialData?.role ?? defaultRole,
+            phone: initialData?.phone ?? '',
+            city: initialData?.city ?? '',
+            subjects: initialData?.subjects?.join(', ') ?? '',
+            qualification: initialData?.qualification ?? '',
+            experience: initialData?.experience?.toString() ?? '',
+            password: '',
+        },
     });
 
     const onSubmit = async (data: UserForm) => {
         setApiError('');
         try {
-            await createUser.mutateAsync({
+            const payload = {
                 name: data.name,
                 email: data.email,
-                password: data.password,
+                password: data.password || undefined,
                 role: data.role,
                 phone: data.phone,
                 city: data.city,
                 subjects: data.subjects ? data.subjects.split(',').map(s => s.trim()).filter(Boolean) : [],
                 qualification: data.qualification,
                 experience: data.experience ? parseInt(data.experience) : undefined,
-            });
-            
-            const msg = `User "${data.name}" created as ${roleLabel[data.role]}`;
+            };
+
+            if (initialData) {
+                await updateTeacher.mutateAsync(payload);
+            } else {
+                await createUser.mutateAsync(payload as any);
+            }
+
+            const msg = initialData
+                ? `Teacher "${data.name}" updated successfully`
+                : `User "${data.name}" created as ${roleLabel[data.role]}`;
+
             onSuccess?.(msg);
             setOpen(false);
             reset();
@@ -78,69 +104,118 @@ export function CreateUserDialog({ trigger, defaultRole = 'teacher', onSuccess }
                 setShowPassword(false);
             }
         }}>
-            <DialogTrigger render={trigger ? (trigger as React.ReactElement) : (
+            {trigger && (
+                <DialogTrigger render={trigger} />
+            )}
+            {!trigger && !controlledOpen && (
+                <DialogTrigger>
                     <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
                         <UserPlus className="w-4 h-4" /> Create User
                     </Button>
-                )} />
+                </DialogTrigger>
+            )}
             <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                        <UserPlus className="w-4 h-4 text-blue-600" /> Create New User
+                <DialogHeader className="border-b pb-4 mb-2">
+                    <DialogTitle className="flex items-center gap-3 text-lg font-bold">
+                        <div className="p-2 bg-primary/10 rounded-lg">
+                            {initialData ? <Pencil className="w-5 h-5 text-primary" /> : <UserPlus className="w-5 h-5 text-primary" />}
+                        </div>
+                        {initialData ? 'Update Teacher' : 'Create New User'}
                     </DialogTitle>
                 </DialogHeader>
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2">
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="col-span-2 space-y-1"><Label>Full Name *</Label>
-                            <Input placeholder="e.g. Priya Sharma" {...register('name')} />
-                            {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
-                        </div>
-                        <div className="col-span-2 space-y-1"><Label>Email Address *</Label>
-                            <Input type="email" placeholder="user@school.com" {...register('email')} />
-                            {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
-                        </div>
-                        <div className="col-span-2 space-y-1"><Label>Password *</Label>
-                            <div className="relative">
-                                <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" className="pr-10" {...register('password')} />
-                                <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--muted-foreground)' }} onClick={() => setShowPassword(!showPassword)}>
-                                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                </button>
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 mt-4 pb-4">
+                    <div className="space-y-8">
+                        {/* Section: Account Information */}
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                <Shield className="w-4 h-4" /> Account Details
                             </div>
-                            {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="col-span-2 space-y-1.5">
+                                    <Label className="text-xs font-medium">Full Name *</Label>
+                                    <Input placeholder="e.g. Priya Sharma" {...register('name')} />
+                                    {errors.name && <p className="text-[11px] font-medium text-destructive mt-1">{errors.name.message}</p>}
+                                </div>
+                                <div className="col-span-2 space-y-1.5">
+                                    <Label className="text-xs font-medium">Email Address *</Label>
+                                    <Input type="email" placeholder="user@school.com" {...register('email')} />
+                                    {errors.email && <p className="text-[11px] font-medium text-destructive mt-1">{errors.email.message}</p>}
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-medium">Password {initialData ? '(optional)' : '*'}</Label>
+                                    <div className="relative">
+                                        <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" className="pr-10" {...register('password', { required: !initialData })} />
+                                        <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowPassword(!showPassword)}>
+                                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                        </button>
+                                    </div>
+                                    {errors.password && <p className="text-[11px] font-medium text-destructive mt-1">{errors.password.message}</p>}
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-medium">Role *</Label>
+                                    <Controller name="role" control={control} render={({ field }) => (
+                                        <Select value={field.value} onValueChange={v => field.onChange(v ?? 'teacher')}>
+                                            <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="teacher">Teacher</SelectItem>
+                                                <SelectItem value="admin">Admin</SelectItem>
+                                                <SelectItem value="super_admin">Super Admin</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    )} />
+                                    {errors.role && <p className="text-[11px] font-medium text-destructive mt-1">{errors.role.message}</p>}
+                                </div>
+                            </div>
                         </div>
-                        <div className="col-span-2 space-y-1"><Label>Role *</Label>
-                            <Controller name="role" control={control} render={({ field }) => (
-                                <Select value={field.value} onValueChange={v => field.onChange(v ?? 'teacher')}>
-                                    <SelectTrigger className="w-full"><SelectValue placeholder="Select role" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="teacher">👩‍🏫 Teacher</SelectItem>
-                                        <SelectItem value="admin">🛡️ Admin</SelectItem>
-                                        <SelectItem value="super_admin">⚡ Super Admin</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            )} />
-                            {errors.role && <p className="text-xs text-red-500">{errors.role.message}</p>}
+
+                        {/* Section: Personal Details */}
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                <Users className="w-4 h-4" /> Personal Identity
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-medium flex items-center gap-1.5"><Phone className="w-3 h-3" /> Phone</Label>
+                                    <Input placeholder="+91..." {...register('phone')} />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-medium flex items-center gap-1.5"><MapPin className="w-3 h-3" /> City</Label>
+                                    <Input placeholder="Mumbai" {...register('city')} />
+                                </div>
+                                <div className="col-span-2 space-y-1.5">
+                                    <Label className="text-xs font-medium flex items-center gap-1.5"><BookOpen className="w-3 h-3" /> Subjects (comma separated)</Label>
+                                    <Input placeholder="e.g. Maths, Science" {...register('subjects')} />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-medium flex items-center gap-1.5"><GraduationCap className="w-3 h-3" /> Qualification</Label>
+                                    <Input placeholder="M.Sc." {...register('qualification')} />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-medium">Experience (yrs)</Label>
+                                    <Input type="number" placeholder="5" {...register('experience')} />
+                                </div>
+                            </div>
                         </div>
-                        <div className="space-y-1"><Label>Phone</Label><Input placeholder="+91 98765 43210" {...register('phone')} /></div>
-                        <div className="space-y-1"><Label>City</Label><Input placeholder="e.g. Mumbai" {...register('city')} /></div>
-                        <div className="col-span-2 space-y-1"><Label>Subjects (comma separated)</Label>
-                            <Input placeholder="Mathematics, Physics" {...register('subjects')} />
-                        </div>
-                        <div className="space-y-1"><Label>Qualification</Label><Input placeholder="e.g. M.Sc." {...register('qualification')} /></div>
-                        <div className="space-y-1"><Label>Experience (years)</Label><Input type="number" placeholder="e.g. 5" {...register('experience')} /></div>
                     </div>
-                    {apiError && <p className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 p-2 rounded">{apiError}</p>}
-                    <div className="p-3 rounded-xl text-xs" style={{ background: 'var(--muted)', color: 'var(--muted-foreground)' }}>
-                        <p className="font-semibold mb-1">Role Permissions:</p>
-                        <p>• <strong>Teacher</strong> — View own students, classes, reports, earnings</p>
-                        <p>• <strong>Admin</strong> — View all teachers, students, classes, reports</p>
-                        <p>• <strong>Super Admin</strong> — Full access + user management + permissions</p>
+
+                    {apiError && <p className="text-xs font-semibold text-destructive bg-destructive/10 p-3 border border-destructive/20 rounded-lg">{apiError}</p>}
+
+                    <div className="p-4 rounded-lg border bg-muted/30 space-y-3">
+                        <p className="text-xs font-bold flex items-center gap-2">
+                            Access Permissions Overview
+                        </p>
+                        <div className="grid gap-3 text-[11px] leading-relaxed text-muted-foreground">
+                            <div className="flex gap-2"><span className="font-bold text-primary w-24 shrink-0">Teacher:</span><span>Dedicated dashboard for managing own students, classes, and earnings.</span></div>
+                            <div className="flex gap-2"><span className="font-bold text-primary w-24 shrink-0">Admin:</span><span>Broad visibility across all teachers, classes, and school reports.</span></div>
+                            <div className="flex gap-2"><span className="font-bold text-primary w-24 shrink-0">Super Admin:</span><span>Unlimited access to user management and system configuration.</span></div>
+                        </div>
                     </div>
-                    <div className="flex justify-end gap-3 pt-2">
-                        <Button variant="outline" type="button" onClick={() => setOpen(false)}>Cancel</Button>
-                        <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white gap-2" disabled={createUser.isPending}>
-                            {createUser.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                            <UserPlus className="w-4 h-4" /> Create User
+
+                    <div className="flex justify-end gap-3 pt-6 border-t mt-4">
+                        <Button variant="ghost" type="button" onClick={() => setOpen(false)}>Cancel</Button>
+                        <Button type="submit" className="px-8 font-bold" disabled={createUser.isPending || updateTeacher.isPending}>
+                            {(createUser.isPending || updateTeacher.isPending) && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                            {initialData ? 'Update Account' : 'Create Account Now'}
                         </Button>
                     </div>
                 </form>

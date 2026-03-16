@@ -38,7 +38,7 @@ export default function AdminReportsPage() {
 
             <div className="space-y-4">
                 {reports.map(r => (
-                    <Card key={r._id} className="shadow-sm border hover:shadow-md transition-all" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+                    <Card key={r._id} className="shadow-sm border border-border hover:shadow-md transition-all bg-card">
                         <CardContent className="p-5">
                             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
                                 <div className="flex items-center gap-3">
@@ -59,7 +59,7 @@ export default function AdminReportsPage() {
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div className="rounded-lg p-3" style={{ background: 'var(--muted)' }}>
+                                <div className="rounded-lg p-3 bg-muted/30">
                                     <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>Homework</p>
                                     <p className="text-sm" style={{ color: 'var(--foreground)' }}>{r.homeworkGiven}</p>
                                 </div>

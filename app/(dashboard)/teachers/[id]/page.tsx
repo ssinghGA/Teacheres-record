@@ -1,30 +1,56 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { MOCK_USERS, MOCK_STUDENTS, MOCK_CLASSES, MOCK_PAYMENTS, MOCK_REPORTS } from '@/lib/mockData';
+import { useTeacher } from '@/lib/hooks/useTeachers';
+import { useStudents } from '@/lib/hooks/useStudents';
+import { useClasses } from '@/lib/hooks/useClasses';
+import { usePayments } from '@/lib/hooks/usePayments';
+import { useReports } from '@/lib/hooks/useReports';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MapPin, Mail, Phone, BookOpen, GraduationCap, Users, DollarSign, TrendingUp } from 'lucide-react';
+import { ArrowLeft, MapPin, Mail, Phone, BookOpen, GraduationCap, Users, DollarSign, TrendingUp, Video, Loader2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 
 export default function TeacherDetailsPage() {
     const { id } = useParams();
-    const teacher = MOCK_USERS.find((u) => u.id === id);
+    const teacherId = typeof id === 'string' ? id : '';
 
-    if (!teacher) return (
-        <div className="text-center py-20">
-            <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Teacher not found</p>
+    const { data: teacher, isLoading: loadingTeacher, isError: teacherError } = useTeacher(teacherId);
+    const { data: studentsData, isLoading: loadingStudents } = useStudents();
+    const { data: classesData, isLoading: loadingClasses } = useClasses();
+    const { data: paymentsData, isLoading: loadingPayments } = usePayments();
+    const { data: reportsData, isLoading: loadingReports } = useReports();
+
+    if (loadingTeacher) return (
+        <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        </div>
+    );
+
+    if (teacherError || !teacher) return (
+        <div className="text-center py-20 text-red-500">
+            <AlertCircle className="w-8 h-8 mx-auto mb-2" />
+            <p className="text-sm">Teacher not found or error loading data</p>
             <Link href="/teachers"><Button variant="outline" className="mt-4">Back to Teachers</Button></Link>
         </div>
     );
 
-    const students = MOCK_STUDENTS.filter((s) => s.teacherId === id);
-    const classes = MOCK_CLASSES.filter((c) => c.teacherId === id);
-    const payments = MOCK_PAYMENTS.filter((p) => p.teacherId === id);
-    const reports = MOCK_REPORTS.filter((r) => r.teacherId === id);
+    const students = (studentsData?.students ?? []).filter((s) => 
+        typeof s.teacherId === 'string' ? s.teacherId === teacherId : (s.teacherId as any)?._id === teacherId
+    );
+    const classes = (classesData?.classes ?? []).filter((c) => 
+        typeof c.teacherId === 'string' ? c.teacherId === teacherId : (c.teacherId as any)?._id === teacherId
+    );
+    const payments = (paymentsData?.payments ?? []).filter((p) => 
+        typeof p.teacherId === 'string' ? p.teacherId === teacherId : (p.teacherId as any)?._id === teacherId
+    );
+    const reports = (reportsData?.reports ?? []).filter((r) => 
+        typeof r.teacherId === 'string' ? r.teacherId === teacherId : (r.teacherId as any)?._id === teacherId
+    );
+
     const totalEarned = payments.filter(p => p.status === 'paid').reduce((s, p) => s + p.amount, 0);
     const completedClasses = classes.filter(c => c.status === 'completed');
 
@@ -37,23 +63,37 @@ export default function TeacherDetailsPage() {
 
     const statusBadge = (status: string) => {
         const map: Record<string, string> = {
-            active: 'bg-green-100 text-green-700', completed: 'bg-green-100 text-green-700',
-            inactive: 'bg-red-100 text-red-700', upcoming: 'bg-orange-100 text-orange-700',
-            pending: 'bg-yellow-100 text-yellow-700',
+            active: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+            completed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+            inactive: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+            upcoming: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+            scheduled: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+            pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
         };
         return map[status] ?? '';
     };
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center gap-3">
-                <Link href="/teachers">
-                    <Button variant="ghost" size="icon" className="rounded-full"><ArrowLeft className="w-4 h-4" /></Button>
-                </Link>
-                <div>
-                    <h1 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>{teacher.name}</h1>
-                    <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Teacher Profile</p>
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <Link href="/teachers">
+                        <Button variant="ghost" size="icon" className="rounded-full"><ArrowLeft className="w-4 h-4" /></Button>
+                    </Link>
+                    <div>
+                        <h1 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>{teacher.name}</h1>
+                        <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Teacher Profile</p>
+                    </div>
                 </div>
+                {teacher.googleMeetLink && (
+                    <Button 
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-lg shadow-emerald-500/20 rounded-xl px-6 h-10 transition-all"
+                        onClick={() => window.open(teacher.googleMeetLink?.startsWith('http') ? teacher.googleMeetLink : `https://${teacher.googleMeetLink}`, '_blank')}
+                    >
+                        <Video className="w-4 h-4" />
+                        Join Class / Meet
+                    </Button>
+                )}
             </div>
 
             {/* Profile card */}
@@ -89,8 +129,8 @@ export default function TeacherDetailsPage() {
                                         <span style={{ color: 'var(--foreground)' }}>{teacher.qualification}</span>
                                     </div>
                                 )}
-                                {teacher.experience && (
-                                    <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Experience: <span className="font-medium" style={{ color: 'var(--foreground)' }}>{teacher.experience}</span></p>
+                                {teacher.experience !== undefined && (
+                                    <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Experience: <span className="font-medium" style={{ color: 'var(--foreground)' }}>{teacher.experience} years</span></p>
                                 )}
                                 <div className="flex flex-wrap gap-1">
                                     {teacher.subjects?.map((s) => (
@@ -103,6 +143,15 @@ export default function TeacherDetailsPage() {
                     {teacher.bio && (
                         <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
                             <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>{teacher.bio}</p>
+                        </div>
+                    )}
+                    {teacher.googleMeetLink && (
+                        <div className="mt-4 pt-4 border-t flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3" style={{ borderColor: 'var(--border)' }}>
+                            <div className="flex items-center gap-2 text-sm">
+                                <Video className="w-4 h-4 text-emerald-600" />
+                                <span className="font-medium" style={{ color: 'var(--foreground)' }}>Static Google Meet Link:</span>
+                                <span className="text-emerald-700 dark:text-emerald-400 break-all">{teacher.googleMeetLink}</span>
+                            </div>
                         </div>
                     )}
                 </CardContent>
@@ -136,7 +185,7 @@ export default function TeacherDetailsPage() {
                 <TabsContent value="students" className="mt-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {students.map((student) => (
-                            <Card key={student.id} className="shadow-sm border" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+                            <Card key={student._id} className="shadow-sm border" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
                                 <CardContent className="p-4 flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 font-bold text-sm flex-shrink-0">
                                         {student.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
@@ -167,15 +216,15 @@ export default function TeacherDetailsPage() {
                                     </thead>
                                     <tbody>
                                         {classes.map((c, i) => {
-                                            const student = MOCK_STUDENTS.find(s => s.id === c.studentId);
+                                            const studentName = typeof c.studentId === 'object' ? c.studentId.name : 'Unknown';
                                             return (
-                                                <tr key={c.id} style={{ borderBottom: i < classes.length - 1 ? '1px solid var(--border)' : 'none' }}
+                                                <tr key={c._id} style={{ borderBottom: i < classes.length - 1 ? '1px solid var(--border)' : 'none' }}
                                                     className="hover:bg-blue-50/50 dark:hover:bg-blue-900/10">
-                                                    <td className="px-4 py-3 font-medium" style={{ color: 'var(--foreground)' }}>{student?.name}</td>
+                                                    <td className="px-4 py-3 font-medium" style={{ color: 'var(--foreground)' }}>{studentName}</td>
                                                     <td className="px-4 py-3" style={{ color: 'var(--foreground)' }}>{c.topic}</td>
                                                     <td className="px-4 py-3" style={{ color: 'var(--muted-foreground)' }}>{format(new Date(c.date), 'dd MMM yyyy')}</td>
                                                     <td className="px-4 py-3" style={{ color: 'var(--muted-foreground)' }}>{c.duration} min</td>
-                                                    <td className="px-4 py-3 font-semibold text-emerald-600">₹{c.ratePerClass}</td>
+                                                    <td className="px-4 py-3 font-semibold text-emerald-600">₹{c.amount}</td>
                                                     <td className="px-4 py-3"><Badge className={`text-xs border-0 ${statusBadge(c.status)}`}>{c.status}</Badge></td>
                                                 </tr>
                                             );
@@ -193,7 +242,7 @@ export default function TeacherDetailsPage() {
                 <TabsContent value="performance" className="mt-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {[
-                            { label: 'Average class rate', value: completedClasses.length > 0 ? `₹${Math.round(classes.reduce((s, c) => s + c.ratePerClass, 0) / (classes.length || 1))}` : 'N/A' },
+                            { label: 'Average class rate', value: completedClasses.length > 0 ? `₹${Math.round(classes.reduce((s, c) => s + c.amount, 0) / (classes.length || 1))}` : 'N/A' },
                             { label: 'Avg. class duration', value: completedClasses.length > 0 ? `${Math.round(classes.reduce((s, c) => s + c.duration, 0) / (classes.length || 1))} min` : 'N/A' },
                             { label: 'Active students', value: students.filter(s => s.status === 'active').length },
                             { label: 'Completion rate', value: classes.length > 0 ? `${Math.round((completedClasses.length / classes.length) * 100)}%` : 'N/A' },

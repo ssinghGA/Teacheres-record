@@ -8,6 +8,9 @@ import { Sun, Moon, Monitor, Bell, Shield, Palette, CheckCircle2 } from 'lucide-
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useAuth } from '@/contexts/AuthContext';
+import { apiPatch } from '@/lib/api';
+import { toast } from 'sonner';
 
 export default function SettingsPage() {
     const { theme, setTheme } = useTheme();
@@ -22,6 +25,14 @@ export default function SettingsPage() {
     const [is2FAOpen, setIs2FAOpen] = useState(false);
     const [is2FAEnabled, setIs2FAEnabled] = useState(false);
 
+    // Password State
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const { user } = useAuth();
+
     const themeOptions = [
         { value: 'light', label: 'Light', icon: Sun, desc: 'White background with blue accents' },
         { value: 'dark', label: 'Dark', icon: Moon, desc: 'Gray-800 background with blue accents' },
@@ -32,10 +43,36 @@ export default function SettingsPage() {
         setNotifications((prev) => ({ ...prev, [key]: !prev[key] }));
     };
 
-    const handleSavePassword = (e: React.FormEvent) => {
+    const handleSavePassword = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Backend change password logic would go here
-        setIsPasswordOpen(false);
+        
+        if (newPassword !== confirmPassword) {
+            toast.error('New passwords do not match');
+            return;
+        }
+
+        if (newPassword.length < 6) {
+            toast.error('Password must be at least 6 characters');
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            await apiPatch(`/teachers/${user?.id}/change-password`, {
+                currentPassword,
+                newPassword,
+            });
+            toast.success('Password updated successfully');
+            setIsPasswordOpen(false);
+            // Clear form
+            setCurrentPassword('');
+            setNewPassword('');
+            setConfirmPassword('');
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to update password');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const handleSave2FA = () => {
@@ -129,32 +166,59 @@ export default function SettingsPage() {
                             <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Update your account password</p>
                         </div>
                         <Button variant="outline" size="sm" onClick={() => setIsPasswordOpen(true)}>Change</Button>
-                        <Dialog open={isPasswordOpen} onOpenChange={setIsPasswordOpen}>
+                        <Dialog open={isPasswordOpen} onOpenChange={(open) => {
+                            setIsPasswordOpen(open);
+                            if (!open) {
+                                setCurrentPassword('');
+                                setNewPassword('');
+                                setConfirmPassword('');
+                            }
+                        }}>
                             <DialogContent className="sm:max-w-[425px]">
                                 <DialogHeader>
                                     <DialogTitle>Change Password</DialogTitle>
                                     <DialogDescription>
-                                        Enter your current password strictly to verify your identity, then your new password.
+                                        Enter your current password to verify your identity, then your new password.
                                     </DialogDescription>
                                 </DialogHeader>
                                 <form onSubmit={handleSavePassword}>
                                     <div className="grid gap-4 py-4">
                                         <div className="grid gap-2">
                                             <Label htmlFor="current">Current Password</Label>
-                                            <Input id="current" type="password" required />
+                                            <Input 
+                                                id="current" 
+                                                type="password" 
+                                                value={currentPassword}
+                                                onChange={(e) => setCurrentPassword(e.target.value)}
+                                                required 
+                                            />
                                         </div>
                                         <div className="grid gap-2">
                                             <Label htmlFor="new">New Password</Label>
-                                            <Input id="new" type="password" required />
+                                            <Input 
+                                                id="new" 
+                                                type="password" 
+                                                value={newPassword}
+                                                onChange={(e) => setNewPassword(e.target.value)}
+                                                required 
+                                            />
                                         </div>
                                         <div className="grid gap-2">
                                             <Label htmlFor="confirm">Confirm New Password</Label>
-                                            <Input id="confirm" type="password" required />
+                                            <Input 
+                                                id="confirm" 
+                                                type="password" 
+                                                value={confirmPassword}
+                                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                                required 
+                                            />
                                         </div>
                                     </div>
                                     <DialogFooter>
-                                        <Button type="button" variant="outline" onClick={() => setIsPasswordOpen(false)}>Cancel</Button>
-                                        <Button type="submit" className="bg-blue-600 hover:bg-blue-700">Save Password</Button>
+                                        <Button type="button" variant="outline" onClick={() => setIsPasswordOpen(false)} disabled={isSubmitting}>Cancel</Button>
+                                        <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isSubmitting}>
+                                            {isSubmitting ? 'Saving...' : 'Save Password'}
+                                        </Button>
                                     </DialogFooter>
                                 </form>
                             </DialogContent>

@@ -5,8 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Loader2, DollarSign, Calendar, CreditCard } from 'lucide-react';
 import { format } from 'date-fns';
+import { redirect } from 'next/navigation';
 
 export default function StudentPaymentsPage() {
+    redirect('/student-dashboard');
     const { data: paymentsData, isLoading } = usePayments();
     
     const myPayments = paymentsData?.payments ?? [];

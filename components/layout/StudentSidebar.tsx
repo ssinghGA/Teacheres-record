@@ -16,7 +16,6 @@ const studentNav = [
     { href: '/student-dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/student-schedule', label: 'My Schedule', icon: BookOpen },
     { href: '/student-reports', label: 'Progress Reports', icon: TrendingUp },
-    { href: '/student-payments', label: 'Payments', icon: DollarSign },
 ];
 
 interface StudentSidebarProps {

@@ -91,15 +91,16 @@ export default function StudentReportPage({ params }: { params: Promise<{ id: st
             <div className="py-8 px-4 flex justify-center">
                 <div
                     id="student-report-content"
+                    className="pdf-content"
                     style={{
                         width: '794px',
                         minHeight: '1123px',
-                        background: '#fff',
+                        background: '#ffffff',
                         color: '#1a1a2e',
-                        fontFamily: 'Georgia, "Times New Roman", serif',
-                        borderRadius: '4px',
-                        overflow: 'hidden',
-                        boxShadow: '0 4px 32px rgba(0,0,0,0.12)',
+                        fontFamily: "'Inter', 'Georgia', 'Times New Roman', serif",
+                        borderRadius: '0',
+                        overflow: 'visible',
+                        position: 'relative',
                     }}
                 >
                     {/* ── Header Band ───────────────────────────────────────────── */}

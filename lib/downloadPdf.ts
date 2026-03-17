@@ -5,60 +5,75 @@
 
 export async function downloadElementAsPdf(
     elementId: string,
-    filename: string = 'student-report.pdf'
+    filename: string = 'student-report.pdf',
+    options: { singlePage?: boolean; scale?: number } = {}
 ) {
+    const { singlePage = true, scale = 2 } = options;
     const { default: jsPDF } = await import('jspdf');
     const { default: html2canvas } = await import('html2canvas');
 
     const element = document.getElementById(elementId);
     if (!element) throw new Error(`Element #${elementId} not found`);
 
-    // Temporarily expand element for capture
+    // Temporarily prepare element for capture
     const originalStyle = element.style.cssText;
-    element.style.width = '794px'; // A4 width in px at 96dpi
+    const currentWidth = element.offsetWidth;
+    
+    // Force a standard width for consistent PDF layout (A4 width at 96dpi is ~794px)
+    element.style.width = '794px';
+    element.style.maxWidth = 'none';
 
-    const canvas = await html2canvas(element, {
-        scale: 2,           // 2x for high-res
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        windowWidth: 794,
-    });
+    try {
+        const canvas = await html2canvas(element, {
+            scale: scale,
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff',
+            windowWidth: 794,
+            onclone: (doc) => {
+                const clonedElement = doc.getElementById(elementId);
+                if (clonedElement) {
+                    clonedElement.style.width = '794px';
+                    clonedElement.style.height = 'auto';
+                }
+            }
+        });
 
-    element.style.cssText = originalStyle;
+        const imgData = canvas.toDataURL('image/jpeg', 1.0);
+        
+        const imgWidthPx = canvas.width / scale;
+        const imgHeightPx = canvas.height / scale;
 
-    const imgData = canvas.toDataURL('image/jpeg', 0.98);
-    const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
-    });
+        // Convert px to mm (1px = 0.264583mm at 96dpi)
+        const pdfWidthMm = 210; // Fixed A4 width
+        const pdfHeightMm = (imgHeightPx * pdfWidthMm) / imgWidthPx;
 
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-    const imgWidth = canvas.width;
-    const imgHeight = canvas.height;
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: singlePage ? [pdfWidthMm, pdfHeightMm] : 'a4',
+        });
 
-    // Convert canvas px → mm (96dpi → 25.4mm/inch)
-    const ratio = pdfWidth / (imgWidth / 2);
-    const totalHeightMm = (imgHeight / 2) * ratio;
+        if (singlePage) {
+            pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidthMm, pdfHeightMm, undefined, 'FAST');
+        } else {
+            const a4HeightMm = 297;
+            let heightLeft = pdfHeightMm;
+            let position = 0;
 
-    // Multi-page support if content is longer than one A4
-    let yPos = 0;
-    let pageNum = 0;
-    while (yPos < totalHeightMm) {
-        if (pageNum > 0) pdf.addPage();
-        pdf.addImage(
-            imgData,
-            'JPEG',
-            0,
-            -yPos,
-            pdfWidth,
-            (imgHeight / imgWidth) * pdfWidth * (imgWidth / (imgWidth / 2))
-        );
-        yPos += pdfHeight;
-        pageNum++;
+            pdf.addImage(imgData, 'JPEG', 0, position, pdfWidthMm, pdfHeightMm, undefined, 'FAST');
+            heightLeft -= a4HeightMm;
+
+            while (heightLeft > 0) {
+                position = heightLeft - pdfHeightMm;
+                pdf.addPage();
+                pdf.addImage(imgData, 'JPEG', 0, position, pdfWidthMm, pdfHeightMm, undefined, 'FAST');
+                heightLeft -= a4HeightMm;
+            }
+        }
+
+        pdf.save(filename);
+    } finally {
+        element.style.cssText = originalStyle;
     }
-
-    pdf.save(filename);
 }

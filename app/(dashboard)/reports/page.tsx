@@ -12,11 +12,18 @@ export default function AdminReportsPage() {
 
     const reports = reportsData?.reports ?? [];
 
-    const getTeacherName = (r: ApiReport) =>
-        typeof r.teacherId === 'object' ? r.teacherId.name : (teachers ?? []).find(t => t._id === r.teacherId)?.name ?? 'N/A';
+    const getTeacherName = (r: ApiReport) => {
+        if (!r.teacherId) return 'N/A';
+        return typeof r.teacherId === 'object' ? r.teacherId.name : (teachers ?? []).find(t => t._id === r.teacherId)?.name ?? 'N/A';
+    };
 
-    const getStudentName = (r: ApiReport) =>
-        typeof r.studentId === 'object' ? r.studentId.name : 'N/A';
+    const getStudentName = (r: ApiReport) => {
+        if (!r.studentId || typeof r.studentId !== 'object') return 'N/A';
+        return r.studentId.name || 'N/A';
+    };
+
+    // Filter out reports where student is null/deleted if requested
+    const visibleReports = reports.filter(r => r.studentId !== null);
 
     const StarRating = ({ value }: { value: number }) => (
         <div className="flex gap-0.5">
@@ -37,7 +44,7 @@ export default function AdminReportsPage() {
             </div>
 
             <div className="space-y-4">
-                {reports.map(r => (
+                {visibleReports.map(r => (
                     <Card key={r._id} className="shadow-sm border border-border hover:shadow-md transition-all bg-card">
                         <CardContent className="p-5">
                             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
@@ -71,10 +78,11 @@ export default function AdminReportsPage() {
                         </CardContent>
                     </Card>
                 ))}
-                {reports.length === 0 && (
-                    <div className="text-center py-12" style={{ color: 'var(--muted-foreground)' }}>
-                        <TrendingUp className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                        <p>No reports yet</p>
+                {visibleReports.length === 0 && (
+                    <div className="text-center py-20 bg-muted/20 border border-dashed border-border rounded-xl">
+                        <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-20 text-indigo-600" />
+                        <p className="font-semibold text-lg text-foreground">No reports found</p>
+                        <p className="text-sm text-muted-foreground mt-1">There are no progress reports recorded yet.</p>
                     </div>
                 )}
             </div>

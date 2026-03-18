@@ -15,11 +15,15 @@ export default function AdminClassesPage() {
     const classes = allClasses?.classes ?? [];
     const totalAmount = classes.reduce((s, c) => s + c.amount, 0);
 
-    const getTeacherName = (c: ApiClass) =>
-        typeof c.teacherId === 'object' ? c.teacherId.name : (teachers ?? []).find(t => t._id === c.teacherId)?.name ?? 'N/A';
+    const getTeacherName = (c: ApiClass) => {
+        if (!c.teacherId) return 'N/A';
+        return typeof c.teacherId === 'object' ? c.teacherId.name : (teachers ?? []).find(t => t._id === (c.teacherId as string))?.name ?? 'N/A';
+    };
 
-    const getStudentName = (c: ApiClass) =>
-        typeof c.studentId === 'object' ? c.studentId.name : 'N/A';
+    const getStudentName = (c: ApiClass) => {
+        if (!c.studentId || typeof c.studentId !== 'object') return 'N/A';
+        return c.studentId.name || 'N/A';
+    };
 
     const statusBadge = (status: string) => {
         const map: Record<string, string> = {
@@ -85,7 +89,15 @@ export default function AdminClassesPage() {
                                     </tr>
                                 ))}
                                 {classes.length === 0 && (
-                                    <tr><td colSpan={8} className="py-12 text-center text-sm" style={{ color: 'var(--muted-foreground)' }}>No classes found</td></tr>
+                                    <tr>
+                                        <td colSpan={8} className="py-20 text-center">
+                                            <div className="flex flex-col items-center justify-center text-muted-foreground">
+                                                <BookOpen className="w-10 h-10 mb-3 opacity-20 text-blue-600" />
+                                                <p className="font-semibold text-lg">No classes found</p>
+                                                <p className="text-sm opacity-70">There are no class sessions recorded yet.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
                                 )}
                             </tbody>
                             {classes.length > 0 && (

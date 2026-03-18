@@ -251,10 +251,11 @@ export default function StudentsPage() {
                         <TableBody>
                             {filtered.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="h-32 text-center">
+                                    <TableCell colSpan={8} className="py-20 text-center">
                                         <div className="flex flex-col items-center justify-center text-muted-foreground">
-                                            <Users className="w-8 h-8 mb-2 opacity-20" />
-                                            <p>No students found</p>
+                                            <Users className="w-10 h-10 mb-3 opacity-20 text-primary" />
+                                            <p className="font-semibold text-lg">No students found</p>
+                                            <p className="text-sm opacity-70">We couldn't find any students matching your criteria.</p>
                                         </div>
                                     </TableCell>
                                 </TableRow>

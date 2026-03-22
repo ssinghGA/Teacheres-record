@@ -36,7 +36,7 @@ export default function EarningsPage() {
     ];
 
     const getStudentName = (p: ApiPayment) =>
-        typeof p.studentId === 'object' ? p.studentId.name : 'N/A';
+        p.studentId && typeof p.studentId === 'object' ? p.studentId.name : 'N/A';
 
     const statusBadge = (status: string) => {
         const map: Record<string, string> = {

@@ -14,7 +14,7 @@ export default function ClassModal({ isOpen, onClose, classData }: ClassModalPro
     if (!classData) return null;
 
     const getStudentName = (c: ApiClass) =>
-        typeof c.studentId === 'object' ? c.studentId.name : 'N/A';
+        c.studentId && typeof c.studentId === 'object' ? c.studentId.name : 'N/A';
 
     const getStatusColor = (status: string) => {
         const map: Record<string, string> = {

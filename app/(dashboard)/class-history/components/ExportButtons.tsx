@@ -18,7 +18,7 @@ interface ExportButtonsProps {
 
 export default function ExportButtons({ data }: ExportButtonsProps) {
     const getStudentName = (c: ApiClass) =>
-        typeof c.studentId === 'object' ? c.studentId.name : 'N/A';
+        c.studentId && typeof c.studentId === 'object' ? c.studentId.name : 'N/A';
 
     const prepareData = () => {
         return data.map(c => ({

@@ -24,7 +24,7 @@ export default function ClassTable({
     const paginatedData = data.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     const getStudentName = (c: ApiClass) =>
-        typeof c.studentId === 'object' ? c.studentId.name : 'N/A';
+        c.studentId && typeof c.studentId === 'object' ? c.studentId.name : 'N/A';
 
     const getStatusColor = (status: string) => {
         const map: Record<string, string> = {

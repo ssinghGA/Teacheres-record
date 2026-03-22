@@ -111,7 +111,7 @@ export default function StudentDashboardPage() {
                         {format(now, 'EEEE, MMMM d, yyyy')} · Here is your learning overview
                     </p>
                 </div>
-                {upcomingClasses.length > 0 && typeof upcomingClasses[0].teacherId === 'object' && upcomingClasses[0].teacherId.googleMeetLink && (
+                {upcomingClasses.length > 0 && upcomingClasses[0].teacherId && typeof upcomingClasses[0].teacherId === 'object' && upcomingClasses[0].teacherId.googleMeetLink && (
                     <Button
                         disabled={joiningId === upcomingClasses[0]._id}
                         onClick={() => handleJoinClass(upcomingClasses[0]._id, (upcomingClasses[0].teacherId as any).googleMeetLink)}
@@ -165,7 +165,7 @@ export default function StudentDashboardPage() {
                             <p className="text-xs text-muted-foreground mt-0.5">Quickly access your upcoming sessions</p>
                         </div>
                         <div className="flex items-center gap-3">
-                            {upcomingClasses.length > 0 && typeof upcomingClasses[0].teacherId === 'object' && upcomingClasses[0].teacherId.googleMeetLink && (
+                            {upcomingClasses.length > 0 && upcomingClasses[0].teacherId && typeof upcomingClasses[0].teacherId === 'object' && upcomingClasses[0].teacherId.googleMeetLink && (
                                 <Button 
                                     variant="outline"
                                     size="sm"
@@ -205,7 +205,7 @@ export default function StudentDashboardPage() {
                                                 {c.duration} mins
                                             </Badge>
                                         </div>
-                                        {typeof c.teacherId === 'object' && c.teacherId.googleMeetLink && (
+                                        {c.teacherId && typeof c.teacherId === 'object' && c.teacherId.googleMeetLink && (
                                             <div className="flex-shrink-0 self-center">
                                                 <Button
                                                     disabled={joiningId === c._id}

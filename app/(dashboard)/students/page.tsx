@@ -269,7 +269,7 @@ export default function StudentsPage() {
                             ) : (
                                 filtered.map((s) => {
                                     const studentClasses = allClasses.filter(c => 
-                                        typeof c.studentId === 'string' ? c.studentId === s._id : (c.studentId as { _id: string })._id === s._id
+                                        c.studentId && (typeof c.studentId === 'string' ? c.studentId === s._id : (c.studentId as any)._id === s._id)
                                     );
                                     const completedClasses = studentClasses.filter(c => c.status === 'completed').length;
                                     const totalClasses = studentClasses.length;
@@ -309,8 +309,8 @@ export default function StudentsPage() {
                                                 <TableCell className="px-4 py-3">
                                                     <div className="flex flex-col">
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-sm font-medium">{typeof s.teacherId === 'object' ? s.teacherId.name : 'Unknown'}</span>
-                                                            {typeof s.teacherId === 'object' && s.teacherId.googleMeetLink && (
+                                                            <span className="text-sm font-medium">{s.teacherId && typeof s.teacherId === 'object' ? (s.teacherId as any).name : 'Unknown'}</span>
+                                                            {s.teacherId && typeof s.teacherId === 'object' && (s.teacherId as any).googleMeetLink && (
                                                                 <button 
                                                                     onClick={() => window.open((s.teacherId as any).googleMeetLink?.startsWith('http') ? (s.teacherId as any).googleMeetLink : `https://${(s.teacherId as any).googleMeetLink}`, '_blank')}
                                                                     className="p-1 hover:bg-emerald-50 text-emerald-600 rounded-md transition-colors"
@@ -320,7 +320,7 @@ export default function StudentsPage() {
                                                                 </button>
                                                             )}
                                                         </div>
-                                                        <span className="text-[10px] text-muted-foreground">ID: {typeof s.teacherId === 'object' ? s.teacherId._id.slice(-6) : 'N/A'}</span>
+                                                        <span className="text-[10px] text-muted-foreground">ID: {s.teacherId && typeof s.teacherId === 'object' ? (s.teacherId as any)._id.slice(-6) : 'N/A'}</span>
                                                     </div>
                                                 </TableCell>
                                             )}

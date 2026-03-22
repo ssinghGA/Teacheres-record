@@ -100,7 +100,7 @@ export default function LoginPage() {
                                     <Label htmlFor="password" className="text-xs font-medium text-muted-foreground">
                                         Password
                                     </Label>
-                                    <button type="button" className="text-xs text-primary hover:underline underline-offset-4">
+                                    <button type="button" className="text-xs text-primary hover:underline underline-offset-4" suppressHydrationWarning>
                                         Forgot password?
                                     </button>
                                 </div>
@@ -116,6 +116,7 @@ export default function LoginPage() {
                                         type="button"
                                         className="absolute right-0 top-0 h-full px-3 text-muted-foreground hover:text-foreground transition-colors"
                                         onClick={() => setShowPassword(!showPassword)}
+                                        suppressHydrationWarning
                                     >
                                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                     </button>
@@ -150,7 +151,7 @@ export default function LoginPage() {
                 </Card>
 
                 {/* Footer info */}
-                <p className="mt-8 text-center text-xs text-muted-foreground">
+                <p className="mt-8 text-center text-xs text-muted-foreground" suppressHydrationWarning>
                     &copy; {new Date().getFullYear()} TeacherPro Systems. All rights reserved.
                 </p>
             </div>

@@ -28,7 +28,7 @@ const classSchema = z.object({
     duration: z.string().min(1, 'Duration required'),
     amount: z.string().min(1, 'Amount required'),
     notes: z.string().optional(),
-    status: z.enum(['scheduled', 'completed', 'cancelled', 'rescheduled']),
+    status: z.enum(['scheduled', 'ongoing', 'completed', 'cancelled', 'rescheduled']),
 });
 type ClassForm = z.infer<typeof classSchema>;
 
@@ -79,7 +79,7 @@ export default function AddClassPage() {
             duration: parseInt(data.duration),
             amount: parseFloat(data.amount),
             notes: data.notes,
-            status: data.status as 'scheduled' | 'completed' | 'cancelled' | 'rescheduled',
+            status: data.status as 'scheduled' | 'ongoing' | 'completed' | 'cancelled' | 'rescheduled',
         };
 
         if (editingClass) {
@@ -99,7 +99,7 @@ export default function AddClassPage() {
 
     const openEdit = (c: ApiClass) => {
         setEditingClass(c);
-        const studentId = typeof c.studentId === 'object' ? c.studentId._id : c.studentId;
+        const studentId = c.studentId && typeof c.studentId === 'object' ? c.studentId._id : c.studentId;
         reset({
             studentId,
             subject: c.subject,
@@ -115,6 +115,7 @@ export default function AddClassPage() {
 
     const statusColor: Record<string, string> = {
         completed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+        ongoing: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
         scheduled: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
         cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
         rescheduled: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
@@ -223,6 +224,7 @@ export default function AddClassPage() {
                                         <SelectTrigger><SelectValue /></SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="completed">Completed</SelectItem>
+                                            <SelectItem value="ongoing">Ongoing</SelectItem>
                                             <SelectItem value="scheduled">Scheduled</SelectItem>
                                             <SelectItem value="cancelled">Cancelled</SelectItem>
                                             <SelectItem value="rescheduled">Rescheduled</SelectItem>
@@ -264,7 +266,7 @@ export default function AddClassPage() {
                 ) : (
                     <div className="space-y-2">
                         {allClasses.slice(0, 10).map(c => {
-                            const studentName = typeof c.studentId === 'object' ? c.studentId.name : '—';
+                            const studentName = c.studentId && typeof c.studentId === 'object' ? c.studentId.name : '—';
                             return (
                                 <Card key={c._id} className="border shadow-sm hover:shadow-md transition-all" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
                                     <CardContent className="p-4 flex items-center justify-between gap-4">

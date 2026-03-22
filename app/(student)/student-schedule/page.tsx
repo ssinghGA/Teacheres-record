@@ -52,7 +52,7 @@ export default function StudentSchedulePage() {
                         View all your upcoming and past classes
                     </p>
                 </div>
-                {allClasses.length > 0 && typeof allClasses[0].teacherId === 'object' && allClasses[0].teacherId?.googleMeetLink && (
+                {allClasses.length > 0 && allClasses[0].teacherId && typeof allClasses[0].teacherId === 'object' && allClasses[0].teacherId?.googleMeetLink && (
                     <Button 
                         disabled={joiningId === allClasses[0]._id}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-lg shadow-emerald-500/20 rounded-xl px-6 h-10 transition-all"
@@ -103,7 +103,7 @@ export default function StudentSchedulePage() {
                                     </tr>
                                 ) : (
                                     filteredClasses.map((c) => {
-                                        const teacherName = typeof c.teacherId === 'object' && c.teacherId !== null
+                                        const teacherName = c.teacherId && typeof c.teacherId === 'object' && c.teacherId !== null
                                             ? c.teacherId.name
                                             : 'Teacher';
 
@@ -129,10 +129,10 @@ export default function StudentSchedulePage() {
                                                         </div>
                                                         <div>
                                                             <p className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>{teacherName}</p>
-                                                            {typeof c.teacherId === 'object' && c.teacherId !== null && (
+                                                            {c.teacherId && typeof c.teacherId === 'object' && c.teacherId !== null && (
                                                                 <div className="flex flex-col">
                                                                     <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{c.teacherId.email}</p>
-                                                                    {typeof c.teacherId === 'object' && c.teacherId !== null && c.teacherId.googleMeetLink ? (
+                                                                    {c.teacherId && typeof c.teacherId === 'object' && c.teacherId !== null && c.teacherId.googleMeetLink ? (
                                                                         <button 
                                                                             onClick={() => handleJoinClass(c._id, (c.teacherId as any).googleMeetLink)}
                                                                             disabled={joiningId === c._id}
@@ -185,7 +185,7 @@ export default function StudentSchedulePage() {
 
                                                 {/* Join Class */}
                                                 <td className="px-6 py-4 text-right">
-                                                    {typeof c.teacherId === 'object' && c.teacherId !== null && c.teacherId.googleMeetLink ? (
+                                                    {c.teacherId && typeof c.teacherId === 'object' && c.teacherId !== null && c.teacherId.googleMeetLink ? (
                                                         <Button 
                                                             variant="outline"
                                                             size="sm"

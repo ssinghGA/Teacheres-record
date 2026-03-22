@@ -68,7 +68,7 @@ export default function ProgressReportsPage() {
 
     const openEdit = (r: ApiReport) => {
         setEditingReport(r);
-        const studentId = typeof r.studentId === 'object' ? r.studentId._id : r.studentId;
+        const studentId = r.studentId && typeof r.studentId === 'object' ? r.studentId._id : r.studentId;
         reset({
             studentId,
             subject: r.subject,
@@ -110,7 +110,7 @@ export default function ProgressReportsPage() {
     );
 
     const getStudentName = (r: ApiReport) =>
-        typeof r.studentId === 'object' ? r.studentId.name : 'N/A';
+        r.studentId && typeof r.studentId === 'object' ? r.studentId.name : 'N/A';
 
     if (reportsLoading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>;
     if (reportsError) return <div className="flex items-center justify-center py-20 gap-2 text-red-500"><AlertCircle className="w-5 h-5" /><span className="text-sm">{(reportsErr as Error).message}</span></div>;
@@ -129,7 +129,7 @@ export default function ProgressReportsPage() {
 
             <div className="space-y-4">
                 {reports.map(r => {
-                    const studentId = typeof r.studentId === 'object' ? r.studentId._id : r.studentId;
+                    const studentId = r.studentId && typeof r.studentId === 'object' ? r.studentId._id : r.studentId;
                     return (
                         <Card key={r._id} className="shadow-sm border hover:shadow-md transition-all" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
                             <CardContent className="p-5">

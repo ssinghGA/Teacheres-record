@@ -42,7 +42,7 @@ export default function ClassHistoryPage() {
     const filteredClasses = useMemo(() => {
         return classes.filter(c => {
             // Search
-            const student = typeof c.studentId === 'object' ? c.studentId : null;
+            const student = c.studentId && typeof c.studentId === 'object' ? c.studentId : null;
             const studentName = student?.name ?? '';
             const searchLower = search.toLowerCase();
             const matchSearch = c.topic.toLowerCase().includes(searchLower) ||

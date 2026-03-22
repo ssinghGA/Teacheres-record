@@ -216,7 +216,7 @@ export default function TeacherDetailsPage() {
                                     </thead>
                                     <tbody>
                                         {classes.map((c, i) => {
-                                            const studentName = typeof c.studentId === 'object' ? c.studentId.name : 'Unknown';
+                                            const studentName = c.studentId && typeof c.studentId === 'object' ? c.studentId.name : 'Unknown';
                                             return (
                                                 <tr key={c._id} style={{ borderBottom: i < classes.length - 1 ? '1px solid var(--border)' : 'none' }}
                                                     className="hover:bg-blue-50/50 dark:hover:bg-blue-900/10">

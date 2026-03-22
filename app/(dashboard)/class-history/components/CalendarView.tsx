@@ -29,7 +29,7 @@ export default function CalendarView({ data, onEventClick }: CalendarViewProps) 
     const isDark = theme === 'dark';
 
     const getStudentName = (c: ApiClass) =>
-        typeof c.studentId === 'object' ? c.studentId.name : 'N/A';
+        c.studentId && typeof c.studentId === 'object' ? c.studentId.name : 'N/A';
 
     const events = data.map(c => {
         // Construct standard JS Date objects from the string date and time

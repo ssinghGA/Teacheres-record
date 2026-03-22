@@ -121,7 +121,7 @@ export default function DashboardPage() {
 
     const getStudentName = (studentField: string | ApiStudent) => {
         if (!studentField) return 'Unknown';
-        if (typeof studentField === 'object') return studentField.name;
+        if (studentField && typeof studentField === 'object') return studentField.name;
         // fallback search if just ID
         return myStudents.find((s) => s._id === studentField)?.name ?? 'Unknown';
     };

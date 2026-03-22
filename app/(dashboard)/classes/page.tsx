@@ -22,7 +22,7 @@ export default function AdminClassesPage() {
     const getTeacherName = (c: ApiClass) => {
         if (!c.teacherId) return 'N/A';
         const teacherList = (teachers as any)?.teachers ?? [];
-        return typeof c.teacherId === 'object' ? c.teacherId.name : teacherList.find((t: any) => t._id === c.teacherId)?.name ?? 'N/A';
+        return c.teacherId && typeof c.teacherId === 'object' ? c.teacherId.name : teacherList.find((t: any) => t._id === c.teacherId)?.name ?? 'N/A';
     };
 
     const getStudentName = (c: ApiClass) => {
@@ -75,7 +75,7 @@ export default function AdminClassesPage() {
                                         <td className="px-4 py-3 font-medium" style={{ color: 'var(--foreground)' }}>
                                             <div className="flex items-center gap-2">
                                                 {getTeacherName(c)}
-                                                {typeof c.teacherId === 'object' && c.teacherId.googleMeetLink && (
+                                                {c.teacherId && typeof c.teacherId === 'object' && c.teacherId.googleMeetLink && (
                                                     <button 
                                                         onClick={() => window.open((c.teacherId as any).googleMeetLink?.startsWith('http') ? (c.teacherId as any).googleMeetLink : `https://${(c.teacherId as any).googleMeetLink}`, '_blank')}
                                                         className="p-1 hover:bg-emerald-50 text-emerald-600 rounded-md transition-colors"

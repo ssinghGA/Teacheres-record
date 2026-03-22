@@ -17,12 +17,19 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Pagination } from '@/components/dashboard/Pagination';
 
 export default function TeachersPage() {
     const { user } = useAuth();
     const [search, setSearch] = useState('');
+    const [page, setPage] = useState(1);
+    const limit = 10;
 
-    const { data: teachers, isLoading, isError, error } = useTeachers();
+    const { data: teachers, isLoading, isError, error } = useTeachers({ 
+        search: search || undefined,
+        page: String(page),
+        limit: String(limit)
+    });
     const { data: allStudents } = useStudents();
     const { data: allClasses } = useClasses();
     const deleteTeacher = useDeleteTeacher();
@@ -41,7 +48,9 @@ export default function TeachersPage() {
         }
     };
 
-    const filtered = (teachers ?? []).filter((t: ApiTeacher) =>
+    const teacherList = teachers?.teachers ?? [];
+
+    const filtered = teacherList.filter((t: ApiTeacher) =>
         t.name.toLowerCase().includes(search.toLowerCase()) ||
         (t.email ?? '').toLowerCase().includes(search.toLowerCase()) ||
         (t.subjects ?? []).some((s: string) => s.toLowerCase().includes(search.toLowerCase()))
@@ -257,21 +266,15 @@ export default function TeachersPage() {
                                 })
                             )}
                         </TableBody>
-                        {/* 
-                        {filtered.length > 0 && (
-                            <tfoot>
-                                <tr className="bg-muted/20 border-t-2 border-border/40 font-semibold">
-                                    <td colSpan={3} className="px-4 py-3 text-xs uppercase tracking-wider text-muted-foreground">Total Summary</td>
-                                    <td className="px-4 py-3 text-center">{(filtered ?? []).reduce((s, t) => s + getTeacherStudentCount(t._id), 0)}</td>
-                                    <td className="px-4 py-3 text-center">{(filtered ?? []).reduce((s, t) => s + getTeacherClassCount(t._id), 0)}</td>
-                                    <td className="px-4 py-3 text-emerald-600">₹{((filtered ?? []).reduce((s, t) => s + getTeacherEarnings(t._id), 0) / 1000).toFixed(1)}k Total</td>
-                                    <td colSpan={2}></td>
-                                </tr>
-                            </tfoot>
-                        )}
-                        */}
                     </Table>
                 </div>
+                {teachers?.pagination && (
+                    <Pagination 
+                        currentPage={teachers.pagination.page} 
+                        totalPages={teachers.pagination.totalPages} 
+                        onPageChange={setPage} 
+                    />
+                )}
             </Card>
 
             {/* Central Edit Dialog */}

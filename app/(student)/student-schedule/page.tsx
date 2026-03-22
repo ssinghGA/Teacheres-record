@@ -8,10 +8,13 @@ import { Loader2, Calendar, Clock, BookOpen, Search, User, Video, ExternalLink }
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { Input } from '@/components/ui/input';
+import { apiPost } from '@/lib/api';
+import { toast } from 'sonner';
 
 export default function StudentSchedulePage() {
     const { data, isLoading } = useClasses();
     const [searchQuery, setSearchQuery] = useState('');
+    const [joiningId, setJoiningId] = useState<string | null>(null);
 
     const allClasses = data?.classes ?? [];
 
@@ -27,6 +30,19 @@ export default function StudentSchedulePage() {
         );
     }
 
+    const handleJoinClass = async (classId: string, meetLink: string) => {
+        try {
+            setJoiningId(classId);
+            await apiPost('/classes/join', { classId });
+            const link = meetLink.startsWith('http') ? meetLink : `https://${meetLink}`;
+            window.open(link, '_blank');
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to join class');
+        } finally {
+            setJoiningId(null);
+        }
+    };
+
     return (
         <div className="space-y-6 max-w-5xl mx-auto">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -38,13 +54,11 @@ export default function StudentSchedulePage() {
                 </div>
                 {allClasses.length > 0 && typeof allClasses[0].teacherId === 'object' && allClasses[0].teacherId?.googleMeetLink && (
                     <Button 
+                        disabled={joiningId === allClasses[0]._id}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-lg shadow-emerald-500/20 rounded-xl px-6 h-10 transition-all"
-                        onClick={() => {
-                            const link = (allClasses[0].teacherId as any).googleMeetLink;
-                            window.open(link.startsWith('http') ? link : `https://${link}`, '_blank');
-                        }}
+                        onClick={() => handleJoinClass(allClasses[0]._id, (allClasses[0].teacherId as any).googleMeetLink)}
                     >
-                        <Video className="w-4 h-4" />
+                        {joiningId === allClasses[0]._id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
                         Join Your Class
                     </Button>
                 )}
@@ -119,16 +133,15 @@ export default function StudentSchedulePage() {
                                                                 <div className="flex flex-col">
                                                                     <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{c.teacherId.email}</p>
                                                                     {typeof c.teacherId === 'object' && c.teacherId !== null && c.teacherId.googleMeetLink ? (
-                                                                        <a 
-                                                                            href={c.teacherId.googleMeetLink.startsWith('http') ? c.teacherId.googleMeetLink : `https://${c.teacherId.googleMeetLink}`} 
-                                                                            target="_blank" 
-                                                                            rel="noopener noreferrer" 
-                                                                            className="text-[10px] text-emerald-600 hover:text-emerald-500 font-medium flex items-center gap-1 mt-1 group"
+                                                                        <button 
+                                                                            onClick={() => handleJoinClass(c._id, (c.teacherId as any).googleMeetLink)}
+                                                                            disabled={joiningId === c._id}
+                                                                            className="text-[10px] text-emerald-600 hover:text-emerald-500 font-medium flex items-center gap-1 mt-1 group disabled:opacity-50"
                                                                         >
-                                                                            <Video className="w-3 h-3" /> 
-                                                                            <span>Join Meet</span>
+                                                                            {joiningId === c._id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Video className="w-3 h-3" />}
+                                                                            <span>Join Class</span>
                                                                             <ExternalLink className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                                                        </a>
+                                                                        </button>
                                                                     ) : (
                                                                         <span className="text-[10px] text-amber-600 italic mt-1 font-medium">Link not set</span>
                                                                     )}
@@ -176,13 +189,12 @@ export default function StudentSchedulePage() {
                                                         <Button 
                                                             variant="outline"
                                                             size="sm"
+                                                            disabled={joiningId === c._id}
                                                             className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400 gap-1.5"
-                                                            onClick={() => {
-                                                                const link = (c.teacherId as any).googleMeetLink;
-                                                                window.open(link.startsWith('http') ? link : `https://${link}`, '_blank');
-                                                            }}
+                                                            onClick={() => handleJoinClass(c._id, (c.teacherId as any).googleMeetLink)}
                                                         >
-                                                            <Video className="w-3.5 h-3.5" /> Join Meet
+                                                            {joiningId === c._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Video className="w-3.5 h-3.5" />} 
+                                                            Join Class
                                                         </Button>
                                                     ) : (
                                                         <span className="text-[10px] text-muted-foreground italic">Link not set</span>

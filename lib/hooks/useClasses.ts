@@ -14,7 +14,11 @@ export interface ApiClass {
     duration: number;
     amount: number;
     notes?: string;
-    status: 'scheduled' | 'completed' | 'cancelled' | 'rescheduled';
+    status: 'scheduled' | 'ongoing' | 'completed' | 'cancelled' | 'rescheduled';
+    conducted?: boolean;
+    missed?: boolean;
+    actualStartTime?: string;
+    actualEndTime?: string;
     createdAt: string;
 }
 

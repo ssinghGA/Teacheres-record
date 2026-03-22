@@ -1,20 +1,24 @@
 'use client';
 
 import { useState } from 'react';
-import { MOCK_USERS } from '@/lib/mockData';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTeachers, useUpdateTeacher, type ApiTeacher } from '@/lib/hooks/useTeachers';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Shield, AlertTriangle } from 'lucide-react';
+import { Shield, AlertTriangle, Loader2 } from 'lucide-react';
+import { Pagination } from '@/components/dashboard/Pagination';
 import type { Role } from '@/types';
 
 export default function PermissionsPage() {
-    const { user } = useAuth();
-    const [users, setUsers] = useState(MOCK_USERS.filter(u => u.id !== user?.id));
+    const { user: currentUser } = useAuth();
+    const [page, setPage] = useState(1);
+    const limit = 10;
 
-    if (user?.role !== 'super_admin') {
+    const { data: teachersData, isLoading, isError } = useTeachers({ page, limit });
+
+    if (currentUser?.role !== 'super_admin') {
         return (
             <div className="text-center py-20">
                 <AlertTriangle className="w-10 h-10 mx-auto mb-3 text-orange-500" />
@@ -24,6 +28,8 @@ export default function PermissionsPage() {
         );
     }
 
+    const users = (teachersData?.teachers ?? []).filter(u => u._id !== currentUser?.id);
+
     const roleLabel: Record<string, string> = { super_admin: 'Super Admin', admin: 'Admin', teacher: 'Teacher' };
     const roleBadge: Record<string, string> = {
         super_admin: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
@@ -31,9 +37,7 @@ export default function PermissionsPage() {
         teacher: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
     };
 
-    const changeRole = (userId: string, newRole: Role) => {
-        setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
-    };
+    // Removed local state changeRole as it's now handled by mutation in UserRow
 
     return (
         <div className="space-y-6">
@@ -59,20 +63,47 @@ export default function PermissionsPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {users.map((u, i) => (
-                                    <UserRow
-                                        key={u.id}
-                                        user={u}
-                                        roleBadge={roleBadge}
-                                        roleLabel={roleLabel}
-                                        onChangeRole={changeRole}
-                                        isLast={i === users.length - 1}
-                                    />
-                                ))}
+                                {isLoading ? (
+                                    <tr>
+                                        <td colSpan={5} className="py-10 text-center">
+                                            <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-600 mb-2" />
+                                            <p className="text-xs text-muted-foreground">Loading users...</p>
+                                        </td>
+                                    </tr>
+                                ) : isError ? (
+                                    <tr>
+                                        <td colSpan={5} className="py-10 text-center text-red-500 text-xs">
+                                            Failed to load users.
+                                        </td>
+                                    </tr>
+                                ) : users.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={5} className="py-10 text-center text-muted-foreground text-xs">
+                                            No other users found.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    users.map((u, i) => (
+                                        <UserRow
+                                            key={u._id}
+                                            user={u}
+                                            roleBadge={roleBadge}
+                                            roleLabel={roleLabel}
+                                            isLast={i === users.length - 1}
+                                        />
+                                    ))
+                                )}
                             </tbody>
                         </table>
                     </div>
                 </CardContent>
+                {teachersData?.pagination && (
+                    <Pagination 
+                        currentPage={teachersData.pagination.page} 
+                        totalPages={teachersData.pagination.totalPages} 
+                        onPageChange={setPage} 
+                    />
+                )}
             </Card>
 
             {/* Role descriptions */}
@@ -94,16 +125,14 @@ export default function PermissionsPage() {
     );
 }
 
-function UserRow({ user, roleBadge, roleLabel, onChangeRole, isLast }: {
-    user: any; roleBadge: any; roleLabel: any; onChangeRole: (id: string, role: Role) => void; isLast: boolean;
+function UserRow({ user, roleBadge, roleLabel, isLast }: {
+    user: ApiTeacher; roleBadge: any; roleLabel: any; isLast: boolean;
 }) {
-    const [selectedRole, setSelectedRole] = useState<Role>(user.role);
-    const [saved, setSaved] = useState(false);
+    const [selectedRole, setSelectedRole] = useState<ApiTeacher['role']>(user.role);
+    const updateRole = useUpdateTeacher(user._id);
 
     const handleSave = () => {
-        onChangeRole(user.id, selectedRole);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
+        updateRole.mutate({ role: selectedRole });
     };
 
     return (
@@ -111,19 +140,19 @@ function UserRow({ user, roleBadge, roleLabel, onChangeRole, isLast }: {
             className="hover:bg-blue-50/50 dark:hover:bg-blue-900/10">
             <td className="px-4 py-3">
                 <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 text-xs font-bold">
-                        {user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                    <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 text-xs font-bold font-mono">
+                        {user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                     </div>
                     <span className="font-medium" style={{ color: 'var(--foreground)' }}>{user.name}</span>
                 </div>
             </td>
             <td className="px-4 py-3" style={{ color: 'var(--muted-foreground)' }}>{user.email}</td>
             <td className="px-4 py-3">
-                <Badge className={`text-xs border-0 ${roleBadge[user.role]}`}>{roleLabel[user.role]}</Badge>
+                <Badge className={`text-[10px] uppercase tracking-wider font-bold border-0 ${roleBadge[user.role]}`}>{roleLabel[user.role]}</Badge>
             </td>
             <td className="px-4 py-3 w-44">
-                <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as Role)}>
-                    <SelectTrigger className="h-8 text-xs">
+                <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as ApiTeacher['role'])}>
+                    <SelectTrigger className="h-8 text-xs bg-muted/30">
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -136,11 +165,11 @@ function UserRow({ user, roleBadge, roleLabel, onChangeRole, isLast }: {
             <td className="px-4 py-3">
                 <Button
                     size="sm"
-                    className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white"
+                    className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white font-medium"
                     onClick={handleSave}
-                    disabled={selectedRole === user.role}
+                    disabled={selectedRole === user.role || updateRole.isPending}
                 >
-                    {saved ? '✓ Saved' : 'Apply'}
+                    {updateRole.isPending ? 'Updating...' : updateRole.isSuccess ? '✓ Saved' : 'Apply'}
                 </Button>
             </td>
         </tr>

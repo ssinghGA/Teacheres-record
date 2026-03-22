@@ -14,7 +14,8 @@ export default function AdminReportsPage() {
 
     const getTeacherName = (r: ApiReport) => {
         if (!r.teacherId) return 'N/A';
-        return typeof r.teacherId === 'object' ? r.teacherId.name : (teachers ?? []).find(t => t._id === r.teacherId)?.name ?? 'N/A';
+        const teacherList = Array.isArray(teachers) ? teachers : teachers?.teachers ?? [];
+        return typeof r.teacherId === 'object' ? r.teacherId.name : teacherList.find((t: any) => t._id === r.teacherId)?.name ?? 'N/A';
     };
 
     const getStudentName = (r: ApiReport) => {

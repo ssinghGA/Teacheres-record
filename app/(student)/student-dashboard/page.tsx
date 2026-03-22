@@ -11,6 +11,9 @@ import { format } from 'date-fns';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import type { ApiClass } from '@/lib/hooks/useClasses';
+import { apiPost } from '@/lib/api';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 export default function StudentDashboardPage() {
     const { user } = useAuth();
@@ -19,8 +22,22 @@ export default function StudentDashboardPage() {
     const { data: classesData, isLoading: loadingClasses } = useClasses();
     const { data: paymentsData, isLoading: loadingPayments } = usePayments();
     const { data: reportsData } = useReports();
+    const [joiningId, setJoiningId] = useState<string | null>(null);
 
     const isLoading = loadingClasses || loadingPayments;
+
+    const handleJoinClass = async (classId: string, meetLink: string) => {
+        try {
+            setJoiningId(classId);
+            await apiPost('/classes/join', { classId });
+            const link = meetLink.startsWith('http') ? meetLink : `https://${meetLink}`;
+            window.open(link, '_blank');
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to join class');
+        } finally {
+            setJoiningId(null);
+        }
+    };
 
     const mySessions = classesData?.classes ?? [];
     const myPayments = paymentsData?.payments ?? [];
@@ -95,15 +112,14 @@ export default function StudentDashboardPage() {
                     </p>
                 </div>
                 {upcomingClasses.length > 0 && typeof upcomingClasses[0].teacherId === 'object' && upcomingClasses[0].teacherId.googleMeetLink && (
-                    <a
-                        href={upcomingClasses[0].teacherId.googleMeetLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                    <Button
+                        disabled={joiningId === upcomingClasses[0]._id}
+                        onClick={() => handleJoinClass(upcomingClasses[0]._id, (upcomingClasses[0].teacherId as any).googleMeetLink)}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-lg shadow-emerald-500/20 rounded-xl px-6 h-10 inline-flex items-center justify-center font-medium text-sm transition-all"
                     >
-                        <Video className="w-4 h-4" />
+                        {joiningId === upcomingClasses[0]._id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
                         Join Your Meet
-                    </a>
+                    </Button>
                 )}
             </div>
 
@@ -153,13 +169,12 @@ export default function StudentDashboardPage() {
                                 <Button 
                                     variant="outline"
                                     size="sm"
+                                    disabled={joiningId === upcomingClasses[0]._id}
                                     className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400 gap-1.5 h-8 px-3 text-xs"
-                                    onClick={() => {
-                                        const link = (upcomingClasses[0].teacherId as any).googleMeetLink;
-                                        window.open(link.startsWith('http') ? link : `https://${link}`, '_blank');
-                                    }}
+                                    onClick={() => handleJoinClass(upcomingClasses[0]._id, (upcomingClasses[0].teacherId as any).googleMeetLink)}
                                 >
-                                    <Video className="w-3.5 h-3.5" /> Join Your Class
+                                    {joiningId === upcomingClasses[0]._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Video className="w-3.5 h-3.5" />} 
+                                    Join Your Class
                                 </Button>
                             )}
                             <Link href="/student-schedule" className="text-sm text-emerald-600 hover:underline flex items-center gap-1">
@@ -192,15 +207,14 @@ export default function StudentDashboardPage() {
                                         </div>
                                         {typeof c.teacherId === 'object' && c.teacherId.googleMeetLink && (
                                             <div className="flex-shrink-0 self-center">
-                                                <a
-                                                    href={c.teacherId.googleMeetLink}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
+                                                <Button
+                                                    disabled={joiningId === c._id}
+                                                    onClick={() => handleJoinClass(c._id, (c.teacherId as any).googleMeetLink)}
                                                     className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 rounded-lg h-9 px-4 inline-flex items-center justify-center font-medium text-xs transition-all"
                                                 >
-                                                    <Video className="w-3.5 h-3.5" />
+                                                    {joiningId === c._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Video className="w-3.5 h-3.5" />}
                                                     Join Meet
-                                                </a>
+                                                </Button>
                                             </div>
                                         )}
                                     </div>

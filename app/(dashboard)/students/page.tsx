@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Pagination } from '@/components/dashboard/Pagination';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useForm, Controller } from 'react-hook-form';
@@ -43,6 +44,8 @@ export default function StudentsPage() {
     const { user } = useAuth();
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+    const [page, setPage] = useState(1);
+    const limit = 10;
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [assigningStudent, setAssigningStudent] = useState<ApiStudent | null>(null);
@@ -54,7 +57,11 @@ export default function StudentsPage() {
     const [emailChecking, setEmailChecking] = useState(false);
     const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const { data, isLoading, isError, error } = useStudents({ search: search || undefined });
+    const { data, isLoading, isError, error } = useStudents({ 
+        search: search || undefined,
+        page: String(page),
+        limit: String(limit),
+    });
     const createStudent = useCreateStudent();
     const updateStudent = useUpdateStudent(editingId ?? '');
     const deleteStudent = useDeleteStudent();
@@ -376,6 +383,13 @@ export default function StudentsPage() {
                         )}
                     </Table>
                 </div>
+                {data?.pagination && (
+                    <Pagination 
+                        currentPage={data.pagination.page} 
+                        totalPages={data.pagination.totalPages} 
+                        onPageChange={setPage} 
+                    />
+                )}
             </Card>
 
             {/* Delete confirm */}
@@ -441,7 +455,7 @@ export default function StudentsPage() {
                                                     <SelectValue placeholder="Select a teacher" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {teachers.map(t => (
+                                                    {(teachers as any)?.teachers?.map((t: any) => (
                                                         <SelectItem key={t._id} value={t._id}>{t.name} ({t.email})</SelectItem>
                                                     ))}
                                                 </SelectContent>
@@ -561,7 +575,7 @@ export default function StudentsPage() {
 
 function AssignTeacherDialog({ student, teachers, onClose }: { 
     student: ApiStudent | null; 
-    teachers: any[]; 
+    teachers: any; 
     onClose: () => void 
 }) {
     const createStudent = useCreateStudent();
@@ -626,7 +640,7 @@ function AssignTeacherDialog({ student, teachers, onClose }: {
                                 <Select value={field.value} onValueChange={field.onChange}>
                                     <SelectTrigger><SelectValue placeholder="Choose teacher" /></SelectTrigger>
                                     <SelectContent>
-                                        {teachers.map(t => (
+                                        {(teachers as any)?.teachers?.map((t: any) => (
                                             <SelectItem key={t._id} value={t._id}>{t.name}</SelectItem>
                                         ))}
                                     </SelectContent>

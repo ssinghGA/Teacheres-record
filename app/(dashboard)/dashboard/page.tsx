@@ -14,6 +14,9 @@ import type { ApiStudent } from '@/lib/hooks/useStudents';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { apiPost } from '@/lib/api';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 export default function DashboardPage() {
     const { user } = useAuth();
@@ -21,11 +24,41 @@ export default function DashboardPage() {
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    const { data: studentsData, isLoading: loadingStudents } = useStudents();
-    const { data: classesData, isLoading: loadingClasses } = useClasses();
+    const { data: studentsData, isLoading: loadingStudents } = useStudents({ limit: '10' });
+    const { data: classesData, isLoading: loadingClasses } = useClasses({ limit: 10 });
     const { data: paymentsData, isLoading: loadingPayments } = usePayments();
 
+    const [processingId, setProcessingId] = useState<string | null>(null);
+
     const isLoading = loadingStudents || loadingClasses || loadingPayments;
+
+    const handleStartClass = async (classId: string, meetLink: string) => {
+        try {
+            setProcessingId(classId);
+            await apiPost('/classes/start', { classId });
+            const link = meetLink.startsWith('http') ? meetLink : `https://${meetLink}`;
+            window.open(link, '_blank');
+            toast.success('Class started successfully');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to start class');
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const handleEndClass = async (classId: string) => {
+        try {
+            setProcessingId(classId);
+            await apiPost('/classes/end', { classId });
+            toast.success('Class ended successfully');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to end class');
+        } finally {
+            setProcessingId(null);
+        }
+    };
 
     const myStudents = studentsData?.students ?? [];
     const mySessions = classesData?.classes ?? [];
@@ -40,7 +73,7 @@ export default function DashboardPage() {
         .filter((c) => c.status === 'completed')
         .reduce((sum, c) => sum + (c.amount || 0), 0);
 
-    const upcomingClasses = mySessions.filter((c) => c.status === 'scheduled');
+    const upcomingClasses = mySessions.filter((c) => c.status === 'scheduled' || c.status === 'ongoing');
 
     const stats = [
         {
@@ -121,7 +154,7 @@ export default function DashboardPage() {
                         className="bg-primary hover:bg-primary/90 text-white gap-2 rounded-xl px-6 h-10 inline-flex items-center justify-center font-medium text-sm transition-all"
                     >
                         <Video className="w-4 h-4" />
-                        Start Your Class
+                        Join Your Meet
                     </a>
                 )}
             </div>
@@ -228,21 +261,42 @@ export default function DashboardPage() {
                                         <div className="flex-1 min-w-0">
                                             <div className="flex justify-between items-start">
                                                 <p className="text-sm font-semibold truncate" style={{ color: 'var(--foreground)' }}>{c.topic}</p>
-                                                {user?.googleMeetLink && (
-                                                    <button
-                                                        onClick={() => window.open(user.googleMeetLink?.startsWith('http') ? user.googleMeetLink : `https://${user.googleMeetLink}`, '_blank')}
-                                                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-md hover:bg-blue-200"
-                                                        title="Start Class"
-                                                    >
-                                                        <Video className="w-3.5 h-3.5" />
-                                                    </button>
-                                                )}
+                                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    {user?.googleMeetLink && c.status !== 'ongoing' && (
+                                                        <button
+                                                            disabled={processingId === c._id}
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                handleStartClass(c._id, user.googleMeetLink as string);
+                                                            }}
+                                                            className="p-1 px-2 text-xs font-semibold bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-md hover:bg-blue-200 flex items-center gap-1 disabled:opacity-50"
+                                                            title="Start Class"
+                                                        >
+                                                            {processingId === c._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Video className="w-3.5 h-3.5" />}
+                                                            Start Class
+                                                        </button>
+                                                    )}
+                                                    {c.status === 'ongoing' && (
+                                                        <button
+                                                            disabled={processingId === c._id}
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                handleEndClass(c._id);
+                                                            }}
+                                                            className="p-1 px-2 text-xs font-semibold bg-red-100 dark:bg-red-900/30 text-red-600 rounded-md hover:bg-red-200 flex items-center gap-1 disabled:opacity-50"
+                                                            title="End Class"
+                                                        >
+                                                            {processingId === c._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                                                            End Class
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                             <p className="text-xs truncate" style={{ color: 'var(--muted-foreground)' }}>
                                                 {getStudentName(c.studentId as unknown as ApiStudent)} · {c.time}
                                             </p>
-                                            <Badge className="mt-1 text-xs bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 border-0">
-                                                {c.duration} min
+                                            <Badge className={`mt-1 text-xs border-0 ${c.status === 'ongoing' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                                                {c.status}
                                             </Badge>
                                         </div>
                                     </div>

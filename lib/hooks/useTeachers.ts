@@ -22,7 +22,7 @@ interface TeachersResponse {
     success: boolean;
     data: {
         teachers: ApiTeacher[];
-        pagination?: { total: number; page: number; limit: number; totalPages: number };
+        pagination: { total: number; page: number; limit: number; totalPages: number };
     };
 }
 
@@ -46,7 +46,10 @@ export function useTeachers(params?: Record<string, string | number | undefined>
     return useQuery({
         queryKey: teacherKeys.list(params),
         queryFn: () => apiGet<TeachersResponse>('/teachers', params),
-        select: (data) => data.data.teachers,
+        select: (data) => ({
+            teachers: data.data.teachers,
+            pagination: data.data.pagination,
+        }),
     });
 }
 

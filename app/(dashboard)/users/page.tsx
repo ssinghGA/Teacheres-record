@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Shield, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
 import { CreateUserDialog } from '@/components/dashboard/CreateUserDialog';
+import { Pagination } from '@/components/dashboard/Pagination';
 
 const roleBadge: Record<string, string> = {
     super_admin: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
@@ -18,8 +19,10 @@ const roleLabel: Record<string, string> = { super_admin: 'Super Admin', admin: '
 export default function UsersPage() {
     const { user } = useAuth();
     const [savedMsg, setSavedMsg] = useState('');
+    const [page, setPage] = useState(1);
+    const limit = 10;
 
-    const { data: teachers, isLoading, refetch } = useTeachers();
+    const { data: teachersData, isLoading, refetch } = useTeachers({ page, limit });
 
     if (user?.role !== 'super_admin') {
         return (
@@ -31,7 +34,7 @@ export default function UsersPage() {
         );
     }
 
-    const allUsers = teachers ?? [];
+    const allUsers = teachersData?.teachers ?? [];
     const counts = {
         super_admin: allUsers.filter(u => u.role === 'super_admin').length,
         admin: allUsers.filter(u => u.role === 'admin').length,
@@ -133,6 +136,13 @@ export default function UsersPage() {
                         </div>
                     )}
                 </CardContent>
+                {teachersData?.pagination && (
+                    <Pagination 
+                        currentPage={teachersData.pagination.page} 
+                        totalPages={teachersData.pagination.totalPages} 
+                        onPageChange={setPage} 
+                    />
+                )}
             </Card>
         </div>
     );

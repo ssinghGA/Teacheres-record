@@ -7,9 +7,13 @@ import { Badge } from '@/components/ui/badge';
 import { BookOpen, Loader2, AlertCircle, Video } from 'lucide-react';
 import { format } from 'date-fns';
 import type { ApiClass } from '@/lib/hooks/useClasses';
+import { Pagination } from '@/components/dashboard/Pagination';
+import { useState } from 'react';
 
 export default function AdminClassesPage() {
-    const { data: allClasses, isLoading, isError, error } = useClasses();
+    const [page, setPage] = useState(1);
+    const limit = 10;
+    const { data: allClasses, isLoading, isError, error } = useClasses({ page, limit });
     const { data: teachers } = useTeachers();
 
     const classes = allClasses?.classes ?? [];
@@ -17,7 +21,8 @@ export default function AdminClassesPage() {
 
     const getTeacherName = (c: ApiClass) => {
         if (!c.teacherId) return 'N/A';
-        return typeof c.teacherId === 'object' ? c.teacherId.name : (teachers ?? []).find(t => t._id === (c.teacherId as string))?.name ?? 'N/A';
+        const teacherList = (teachers as any)?.teachers ?? [];
+        return typeof c.teacherId === 'object' ? c.teacherId.name : teacherList.find((t: any) => t._id === c.teacherId)?.name ?? 'N/A';
     };
 
     const getStudentName = (c: ApiClass) => {
@@ -28,10 +33,12 @@ export default function AdminClassesPage() {
     const statusBadge = (status: string) => {
         const map: Record<string, string> = {
             completed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
-            upcoming: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+            scheduled: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+            ongoing: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
             cancelled: 'bg-red-100 text-red-700',
+            rescheduled: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
         };
-        return map[status] ?? '';
+        return map[status] ?? 'bg-gray-100 text-gray-700';
     };
 
     if (isLoading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>;
@@ -114,6 +121,13 @@ export default function AdminClassesPage() {
                         </table>
                     </div>
                 </CardContent>
+                {allClasses?.pagination && (
+                    <Pagination 
+                        currentPage={allClasses.pagination.page} 
+                        totalPages={allClasses.pagination.totalPages} 
+                        onPageChange={setPage} 
+                    />
+                )}
             </Card>
         </div>
     );

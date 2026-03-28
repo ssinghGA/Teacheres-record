@@ -117,7 +117,7 @@ export function useBulkCreateClasses() {
             studentId: string;
             subject: string;
             topic: string;
-            classes: { date: string; time: string }[];
+            classes: { date: string; time: string; topic?: string }[];
             duration: number;
             amount?: number;
             notes?: string;

@@ -1,25 +1,27 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Sidebar from '@/components/layout/Sidebar';
+import StudentSidebar from '@/components/layout/StudentSidebar';
 import Navbar from '@/components/layout/Navbar';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const { isAuthenticated, isLoading, user } = useAuth();
     const router = useRouter();
+    const pathname = usePathname();
 
     useEffect(() => {
         if (!isLoading) {
             if (!isAuthenticated) {
                 router.push('/login');
-            } else if (user?.role === 'student') {
+            } else if (user?.role === 'student' && !pathname.startsWith('/homework')) {
                 router.push('/student-dashboard');
             }
         }
-    }, [isAuthenticated, isLoading, user, router]);
+    }, [isAuthenticated, isLoading, user, router, pathname]);
 
     if (isLoading) {
         return (
@@ -32,11 +34,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         );
     }
 
-    if (!isAuthenticated || user?.role === 'student') return null;
+    if (!isAuthenticated || (user?.role === 'student' && !pathname.includes('homework'))) return null;
 
     return (
         <div className="flex h-screen overflow-hidden" style={{ background: 'var(--background)' }}>
-            <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+            {user?.role === 'student' ? (
+                <StudentSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+            ) : (
+                <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+            )}
             <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
                 <Navbar onMenuClick={() => setSidebarOpen(true)} />
                 <main className="flex-1 overflow-y-auto p-4 md:p-6 animate-fade-in">

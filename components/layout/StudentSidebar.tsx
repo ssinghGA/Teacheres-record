@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import {
     LayoutDashboard, BookOpen, TrendingUp, DollarSign, X,
-    ChevronRight, LogOut, School, User, Key, Settings
+    ChevronRight, LogOut, School, User, Key, Settings, ClipboardList
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -16,6 +16,7 @@ const studentNav = [
     { href: '/student-dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/student-schedule', label: 'My Schedule', icon: BookOpen },
     { href: '/student-reports', label: 'Progress Reports', icon: TrendingUp },
+    // { href: '/homework', label: 'Homework', icon: ClipboardList },
 ];
 
 const profileNav = [

@@ -7,7 +7,7 @@ import { usePayments } from '@/lib/hooks/usePayments';
 import { useTeacher, useTeachers } from '@/lib/hooks/useTeachers';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, BookOpen, DollarSign, CalendarClock, TrendingUp, ArrowUpRight, Loader2, Video, MoreVertical, ExternalLink } from 'lucide-react';
+import { Users, BookOpen, DollarSign, CalendarClock, TrendingUp, ArrowUpRight, Loader2, Video, MoreVertical, ExternalLink, ClipboardList } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,8 @@ import { apiPost } from '@/lib/api';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Pagination } from '@/components/dashboard/Pagination';
+import AddHomeworkDialog from '@/components/dashboard/AddHomeworkDialog';
+
 
 export default function DashboardPage() {
     const { user } = useAuth();
@@ -36,6 +38,7 @@ export default function DashboardPage() {
     const { data: paymentsData, isLoading: loadingPayments } = usePayments();
 
     const [processingId, setProcessingId] = useState<string | null>(null);
+    const [homeworkDialog, setHomeworkDialog] = useState(false);
 
     const isLoading = loadingStudents || loadingClasses || loadingPayments || (isAdmin && loadingTeachers);
 
@@ -206,12 +209,21 @@ export default function DashboardPage() {
                         href={currentGoogleMeetLink.startsWith('http') ? currentGoogleMeetLink : `https://${currentGoogleMeetLink}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="bg-primary hover:bg-primary/90 text-white gap-2 rounded-xl px-6 h-10 inline-flex items-center justify-center font-medium text-sm transition-all"
+                        className="bg-primary hover:bg-primary/90 text-white gap-2 rounded-xl px-6 h-10 inline-flex items-center justify-center font-medium text-sm transition-all shadow-lg shadow-primary/20"
                     >
                         <Video className="w-4 h-4" />
                         Join Your Meet
                     </a>
                 )}
+                {/* {user?.role === 'teacher' && (
+                    <Button 
+                        onClick={() => setHomeworkDialog(true)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-6 h-10 font-bold gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
+                    >
+                        <ClipboardList className="w-4 h-4" />
+                        Assign Homework
+                    </Button>
+                )} */}
             </div>
 
             {/* Stats grid */}
@@ -424,6 +436,12 @@ export default function DashboardPage() {
                     </Card>
                 </div>
             )}
+
+            <AddHomeworkDialog
+                open={homeworkDialog}
+                onOpenChange={setHomeworkDialog}
+                teacherId={user?._id || ''}
+            />
         </div>
     );
 }

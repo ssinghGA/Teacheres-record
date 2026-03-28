@@ -16,7 +16,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { BookOpen, CheckCircle, Loader2, Pencil, Trash2, AlertCircle, Calendar as CalendarIcon, Clock, Plus, History, ArrowRight, Search, FileText } from 'lucide-react';
+import { BookOpen, CheckCircle, Loader2, Pencil, Trash2, AlertCircle, Calendar as CalendarIcon, Clock, Plus, History, ArrowRight, Search, FileText, ClipboardList } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -24,6 +24,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination } from '@/components/dashboard/Pagination';
 import { cn } from '@/lib/utils';
+import AddHomeworkDialog from '@/components/dashboard/AddHomeworkDialog';
 
 const classSchema = z.object({
     studentId: z.string().min(1, 'Select a student'),
@@ -39,7 +40,7 @@ const classSchema = z.object({
 type ClassForm = z.infer<typeof classSchema>;
 
 export default function AddClassPage() {
-    const { user } = useAuth();
+    const { user, isLoading: authLoading } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
@@ -51,12 +52,24 @@ export default function AddClassPage() {
     const [page, setPage] = useState(1);
     const limit = 10;
 
-    const { data: studentsData } = useStudents({ teacherId: user?._id });
-    const { data: classesData, isLoading: classesLoading } = useClasses({ 
-        teacherId: user?._id,
+    const [homeworkDialog, setHomeworkDialog] = useState<{ open: boolean, data?: any }>({ open: false });
+
+    // Define query params based on role
+    const classesParams: Record<string, string | undefined> = {
         page: String(page),
         limit: String(limit),
-    });
+    };
+
+    if (user?.role === 'teacher') {
+        classesParams.teacherId = user?._id;
+    } else if (user?.role === 'student') {
+        classesParams.studentId = user?._id;
+    }
+
+    const studentsParams = user?.role === 'teacher' ? { teacherId: user?._id } : {};
+
+    const { data: studentsData } = useStudents(studentsParams);
+    const { data: classesData, isLoading: classesLoading } = useClasses(classesParams);
     const { data: classToEdit, isLoading: loadingToEdit } = useClass(editId || '');
 
     const createClass = useCreateClass();
@@ -114,8 +127,13 @@ export default function AddClassPage() {
 
     // State for Bulk Scheduling
     const [selectedDays, setSelectedDays] = useState<Date[]>([]);
+    const [dateTopics, setDateTopics] = useState<Record<string, string>>({});
     const [bulkTime, setBulkTime] = useState('10:00');
     const [bulkDuration, setBulkDuration] = useState('60');
+
+    const handleDateTopicChange = (date: Date, topic: string) => {
+        setDateTopics(prev => ({ ...prev, [date.toISOString()]: topic }));
+    };
 
     const onBulkSubmit = async (data: any) => {
         if (selectedDays.length === 0) {
@@ -125,8 +143,12 @@ export default function AddClassPage() {
         const payload = {
             studentId: data.studentId,
             subject: data.subject,
-            topic: data.topic,
-            classes: selectedDays.map(d => ({ date: format(d, 'yyyy-MM-dd'), time: bulkTime })),
+            topic: data.topic || 'Bulk Session',
+            classes: selectedDays.map(d => ({ 
+                date: format(d, 'yyyy-MM-dd'), 
+                time: bulkTime,
+                topic: dateTopics[d.toISOString()] || data.topic 
+            })),
             duration: parseInt(bulkDuration),
             amount: parseFloat(data.amount || '0'),
             notes: data.notes,
@@ -134,6 +156,7 @@ export default function AddClassPage() {
         await bulkCreateClasses.mutateAsync(payload);
         setSuccess(true);
         setSelectedDays([]);
+        setDateTopics({});
     };
 
     const populateForm = (c: ApiClass) => {
@@ -180,6 +203,14 @@ export default function AddClassPage() {
         rescheduled: 'bg-indigo-50 text-indigo-700 border-indigo-100',
     };
 
+    if (authLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+            </div>
+        );
+    }
+
     if (success) {
         return (
             <div className="max-w-md mx-auto text-center py-24 space-y-6">
@@ -202,218 +233,239 @@ export default function AddClassPage() {
             {/* Header Content */}
             <div className="flex flex-col items-center text-center space-y-2">
                 <h1 className="text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-2">
-                    <span className="bg-emerald-600 text-white p-1.5 rounded-lg"><Plus className="w-6 h-6" /></span>
-                    Class Management
+                    <span className="bg-emerald-600 text-white p-1.5 rounded-lg">
+                        {user?.role === 'student' ? <History className="w-6 h-6" /> : <Plus className="w-6 h-6" />}
+                    </span>
+                    {user?.role === 'student' ? 'My Class History' : 'Class Management'}
                 </h1>
                 <p className="text-sm text-muted-foreground max-w-lg">
-                    Streamline your teaching schedule. Record individual sessions or bulk schedule recurring classes with ease.
+                    {user?.role === 'student' 
+                        ? 'View and track your scheduled and completed class sessions.' 
+                        : 'Streamline your teaching schedule. Record individual sessions or bulk schedule recurring classes with ease.'}
                 </p>
             </div>
 
-            {/* Compact Professional Tabs (Pills) */}
-            <Tabs defaultValue="single" className="w-full flex flex-col items-center">
-                <TabsList className="bg-white/50 backdrop-blur-sm border border-border p-1 rounded-full shadow-sm mb-8 h-10 w-fit">
-                    <TabsTrigger 
-                        value="single" 
-                        className="rounded-full px-6 py-1.5 text-xs font-semibold data-[state=active]:bg-emerald-600 data-[state=active]:text-white transition-all duration-300"
-                    >
-                        Create Class
-                    </TabsTrigger>
-                    <TabsTrigger 
-                        value="bulk"
-                        className="rounded-full px-6 py-1.5 text-xs font-semibold data-[state=active]:bg-emerald-600 data-[state=active]:text-white transition-all duration-300"
-                    >
-                        Bulk Schedule Class
-                    </TabsTrigger>
-                </TabsList>
+            {user?.role !== 'student' && (
+                <Tabs defaultValue="single" className="w-full flex flex-col items-center">
+                    <TabsList className="bg-white/50 backdrop-blur-sm border border-border p-1 rounded-full shadow-sm mb-8 h-10 w-fit">
+                        <TabsTrigger 
+                            value="single" 
+                            className="rounded-full px-6 py-1.5 text-xs font-semibold data-[state=active]:bg-emerald-600 data-[state=active]:text-white transition-all duration-300"
+                        >
+                            Create Class
+                        </TabsTrigger>
+                        <TabsTrigger 
+                            value="bulk"
+                            className="rounded-full px-6 py-1.5 text-xs font-semibold data-[state=active]:bg-emerald-600 data-[state=active]:text-white transition-all duration-300"
+                        >
+                            Bulk Schedule Class
+                        </TabsTrigger>
+                    </TabsList>
 
-                {/* Form Sections */}
-                <div className="w-full max-w-4xl">
-                    <TabsContent value="single" className="focus-visible:outline-none">
-                        <Card className="border shadow-md rounded-2xl overflow-hidden bg-card">
-                            <CardContent className="p-8">
-                                <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
-                                        <div className="md:col-span-2 space-y-2">
-                                            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Student Name</Label>
-                                            <Controller name="studentId" control={control} render={({ field }) => (
-                                                <Select value={field.value} onValueChange={v => field.onChange(v ?? '')}>
-                                                    <SelectTrigger className="h-12 rounded-xl border-border/80 focus:ring-emerald-500 text-sm font-medium">
-                                                        <SelectValue placeholder="Select student" />
-                                                    </SelectTrigger>
-                                                    <SelectContent className="rounded-xl">
-                                                        {students.filter(s => s.status === 'active' || s._id === field.value).map(s => (
-                                                            <SelectItem key={s._id} value={s._id}>{s.name} — {s.subject}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            )} />
-                                            {errors.studentId && <p className="text-xs text-rose-500 ml-1">{errors.studentId.message}</p>}
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Subject Area</Label>
-                                            <Input className="h-12 rounded-xl" placeholder="e.g. Science" {...register('subject')} />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Topics Covered</Label>
-                                            <Input className="h-12 rounded-xl" placeholder="Detailed Topic Name" {...register('topic')} />
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Date</Label>
-                                                <Input type="date" className="h-12 rounded-xl" {...register('date')} />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Time</Label>
-                                                <Input type="time" className="h-12 rounded-xl" {...register('time')} />
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Duration</Label>
-                                                <Controller name="duration" control={control} render={({ field }) => (
-                                                    <Select value={field.value} onValueChange={v => field.onChange(v ?? '')}>
-                                                        <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
-                                                        <SelectContent className="rounded-xl">
-                                                            {['30', '45', '60', '75', '90', '120'].map(d => <SelectItem key={d} value={d}>{d} min</SelectItem>)}
-                                                        </SelectContent>
-                                                    </Select>
-                                                )} />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Earnings (₹)</Label>
-                                                <Input type="number" className="h-12 rounded-xl" {...register('amount')} />
-                                            </div>
-                                        </div>
-
-                                        <div className="md:col-span-2 pt-2">
-                                            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 block">Class Status</Label>
-                                            <Controller name="status" control={control} render={({ field }) => (
-                                                <div className="flex flex-wrap gap-2">
-                                                    {['completed', 'ongoing', 'scheduled', 'cancelled'].map((val) => (
-                                                        <button
-                                                            key={val}
-                                                            type="button"
-                                                            onClick={() => field.onChange(val)}
-                                                            className={cn(
-                                                                "px-5 py-2.5 rounded-full text-xs font-bold capitalize transition-all border",
-                                                                field.value === val 
-                                                                    ? "bg-emerald-600 border-emerald-600 text-white shadow-sm" 
-                                                                    : "bg-white border-border text-muted-foreground hover:bg-muted/50"
-                                                            )}
-                                                        >
-                                                            {val}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )} />
-                                        </div>
-
-                                        <div className="md:col-span-2 space-y-2">
-                                            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Faculty Remarks</Label>
-                                            <Textarea className="rounded-xl min-h-[100px]" placeholder="Student progress notes..." {...register('notes')} />
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center justify-between pt-6 border-t border-border">
-                                        <Button type="button" variant="ghost" onClick={clearEdit} className="text-muted-foreground hover:text-foreground rounded-xl px-6">
-                                            Reset
-                                        </Button>
-                                        <Button 
-                                            type="submit" 
-                                            className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-10 h-12 shadow-md shadow-emerald-500/10 gap-2 font-bold"
-                                            disabled={createClass.isPending || editMutation.isPending}
-                                        >
-                                            {(createClass.isPending || editMutation.isPending) && <Loader2 className="w-4 h-4 animate-spin" />}
-                                            {editingClass ? 'Update Record' : 'Create Class Session'}
-                                        </Button>
-                                    </div>
-                                </form>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-
-                    <TabsContent value="bulk" className="focus-visible:outline-none">
-                        <Card className="border shadow-md rounded-2xl overflow-hidden bg-white">
-                            <CardContent className="p-8">
-                                <form onSubmit={handleSubmit(onBulkSubmit)} className="space-y-8">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                                        <div className="space-y-4">
-                                            <div className="space-y-2">
-                                                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Target Student</Label>
+                    {/* Form Sections */}
+                    <div className="w-full max-w-4xl">
+                        <TabsContent value="single" className="focus-visible:outline-none">
+                            <Card className="border shadow-md rounded-2xl overflow-hidden bg-card">
+                                <CardContent className="p-8">
+                                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+                                            <div className="md:col-span-2 space-y-2">
+                                                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Student Name</Label>
                                                 <Controller name="studentId" control={control} render={({ field }) => (
                                                     <Select value={field.value} onValueChange={v => field.onChange(v ?? '')}>
-                                                        <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select student" /></SelectTrigger>
+                                                        <SelectTrigger className="h-12 rounded-xl border-border/80 focus:ring-emerald-500 text-sm font-medium">
+                                                            <SelectValue placeholder="Select student" />
+                                                        </SelectTrigger>
                                                         <SelectContent className="rounded-xl">
-                                                            {students.filter(s => s.status === 'active').map(s => <SelectItem key={s._id} value={s._id}>{s.name}</SelectItem>)}
+                                                            {students.filter(s => s.status === 'active' || s._id === field.value).map(s => (
+                                                                <SelectItem key={s._id} value={s._id}>{s.name} — {s.subject}</SelectItem>
+                                                            ))}
                                                         </SelectContent>
                                                     </Select>
                                                 )} />
+                                                {errors.studentId && <p className="text-xs text-rose-500 ml-1">{errors.studentId.message}</p>}
                                             </div>
+
+                                            <div className="space-y-2">
+                                                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Subject Area</Label>
+                                                <Input className="h-12 rounded-xl" placeholder="e.g. Science" {...register('subject')} />
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Topics Covered</Label>
+                                                <Input className="h-12 rounded-xl" placeholder="Detailed Topic Name" {...register('topic')} />
+                                            </div>
+
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="space-y-2">
-                                                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Time</Label>
-                                                    <Input type="time" className="h-12 rounded-xl" value={bulkTime} onChange={e => setBulkTime(e.target.value)} />
+                                                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Date</Label>
+                                                    <Input type="date" className="h-12 rounded-xl" {...register('date')} />
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Duration</Label>
-                                                    <Select value={bulkDuration} onValueChange={v => setBulkDuration(v ?? '')}>
-                                                        <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
-                                                        <SelectContent className="rounded-xl">
-                                                            {['30', '45', '60', '75', '90', '120'].map(d => <SelectItem key={d} value={d}>{d} min</SelectItem>)}
-                                                        </SelectContent>
-                                                    </Select>
+                                                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Time</Label>
+                                                    <Input type="time" className="h-12 rounded-xl" {...register('time')} />
                                                 </div>
                                             </div>
-                                            <div className="space-y-2">
-                                                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Subject</Label>
-                                                <Input className="h-12 rounded-xl" placeholder="e.g. Biology" {...register('subject')} />
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Duration</Label>
+                                                    <Controller name="duration" control={control} render={({ field }) => (
+                                                        <Select value={field.value} onValueChange={v => field.onChange(v ?? '')}>
+                                                            <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
+                                                            <SelectContent className="rounded-xl">
+                                                                {['30', '45', '60', '75', '90', '120'].map(d => <SelectItem key={d} value={d}>{d} min</SelectItem>)}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    )} />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Earnings (₹)</Label>
+                                                    <Input type="number" className="h-12 rounded-xl" {...register('amount')} />
+                                                </div>
                                             </div>
-                                            <div className="space-y-2">
-                                                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Topic/Course</Label>
-                                                <Input className="h-12 rounded-xl" placeholder="Full Module Name" {...register('topic')} />
+
+                                            <div className="md:col-span-2 pt-2">
+                                                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 block">Class Status</Label>
+                                                <Controller name="status" control={control} render={({ field }) => (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {['completed', 'ongoing', 'scheduled', 'cancelled'].map((val) => (
+                                                            <button
+                                                                key={val}
+                                                                type="button"
+                                                                onClick={() => field.onChange(val)}
+                                                                className={cn(
+                                                                    "px-5 py-2.5 rounded-full text-xs font-bold capitalize transition-all border",
+                                                                    field.value === val 
+                                                                        ? "bg-emerald-600 border-emerald-600 text-white shadow-sm" 
+                                                                        : "bg-white border-border text-muted-foreground hover:bg-muted/50"
+                                                                )}
+                                                            >
+                                                                {val}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )} />
+                                            </div>
+
+                                            <div className="md:col-span-2 space-y-2">
+                                                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Faculty Remarks</Label>
+                                                <Textarea className="rounded-xl min-h-[100px]" placeholder="Student progress notes..." {...register('notes')} />
                                             </div>
                                         </div>
 
-                                        <div className="space-y-3">
-                                            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-2">Schedule on Calendar</Label>
-                                            <div className="p-4 border border-border/60 rounded-2xl bg-slate-50 shadow-inner flex justify-center">
-                                                <Calendar mode="multiple" selected={selectedDays} onSelect={(days) => setSelectedDays(days || [])} className="rounded-md" />
-                                            </div>
-                                            
-                                            {selectedDays.length > 0 && (
-                                                <div className="mt-4 p-4 bg-emerald-50 border border-emerald-100 rounded-xl animate-in fade-in duration-300">
-                                                    <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                                                        <History className="w-3 h-3" /> Selected Dates ({selectedDays.length})
-                                                    </p>
-                                                    <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
-                                                        {selectedDays.map(d => <Badge key={d.toISOString()} className="bg-white text-emerald-700 border-emerald-100 text-[9px] font-bold px-1.5 h-5 shadow-sm">{format(d, 'dd MMM')}</Badge>)}
+                                        <div className="flex items-center justify-between pt-6 border-t border-border">
+                                            <Button type="button" variant="ghost" onClick={clearEdit} className="text-muted-foreground hover:text-foreground rounded-xl px-6">
+                                                Reset
+                                            </Button>
+                                            <Button 
+                                                type="submit" 
+                                                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-10 h-12 shadow-md shadow-emerald-500/10 gap-2 font-bold"
+                                                disabled={createClass.isPending || editMutation.isPending}
+                                            >
+                                                {(createClass.isPending || editMutation.isPending) && <Loader2 className="w-4 h-4 animate-spin" />}
+                                                {editingClass ? 'Update Record' : 'Create Class Session'}
+                                            </Button>
+                                        </div>
+                                    </form>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+
+                        <TabsContent value="bulk" className="focus-visible:outline-none">
+                            <Card className="border shadow-md rounded-2xl overflow-hidden bg-white">
+                                <CardContent className="p-8">
+                                    <form onSubmit={handleSubmit(onBulkSubmit)} className="space-y-8">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                                            <div className="space-y-4">
+                                                <div className="space-y-2">
+                                                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Target Student</Label>
+                                                    <Controller name="studentId" control={control} render={({ field }) => (
+                                                        <Select value={field.value} onValueChange={v => field.onChange(v ?? '')}>
+                                                            <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select student" /></SelectTrigger>
+                                                            <SelectContent className="rounded-xl">
+                                                                {students.filter(s => s.status === 'active').map(s => <SelectItem key={s._id} value={s._id}>{s.name}</SelectItem>)}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    )} />
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div className="space-y-2">
+                                                        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Time</Label>
+                                                        <Input type="time" className="h-12 rounded-xl" value={bulkTime} onChange={e => setBulkTime(e.target.value)} />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Duration</Label>
+                                                        <Select value={bulkDuration} onValueChange={v => setBulkDuration(v ?? '')}>
+                                                            <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
+                                                            <SelectContent className="rounded-xl">
+                                                                {['30', '45', '60', '75', '90', '120'].map(d => <SelectItem key={d} value={d}>{d} min</SelectItem>)}
+                                                            </SelectContent>
+                                                        </Select>
                                                     </div>
                                                 </div>
-                                            )}
-                                        </div>
-                                    </div>
+                                                <div className="space-y-2">
+                                                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Subject</Label>
+                                                    <Input className="h-12 rounded-xl" placeholder="e.g. Biology" {...register('subject')} />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Topic/Course</Label>
+                                                    <Input className="h-12 rounded-xl" placeholder="Full Module Name" {...register('topic')} />
+                                                </div>
+                                            </div>
 
-                                    <div className="flex justify-end gap-3 pt-6 border-t border-border">
-                                        <Button 
-                                            type="submit" 
-                                            className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-12 h-14 shadow-lg shadow-emerald-500/10 gap-3 font-extrabold text-base"
-                                            disabled={bulkCreateClasses.isPending || selectedDays.length === 0}
-                                        >
-                                            {bulkCreateClasses.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <CalendarIcon className="w-5 h-5" />}
-                                            Schedule {selectedDays.length} Classes
-                                        </Button>
-                                    </div>
-                                </form>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-                </div>
-            </Tabs>
+                                            <div className="space-y-3">
+                                                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-2">Schedule on Calendar</Label>
+                                                <div className="p-4 border border-border/60 rounded-2xl bg-slate-50 shadow-inner flex justify-center">
+                                                    <Calendar mode="multiple" selected={selectedDays} onSelect={(days) => setSelectedDays(days || [])} className="rounded-md" />
+                                                </div>
+                                                
+                                                {selectedDays.length > 0 && (
+                                                    <div className="mt-4 space-y-4">
+                                                        <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-xl animate-in fade-in duration-300">
+                                                            <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-widest mb-3 flex items-center gap-1.5 px-1">
+                                                                <History className="w-3 h-3" /> Customize Topics per Date ({selectedDays.length})
+                                                            </p>
+                                                            <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                                                                {selectedDays.sort((a,b) => a.getTime() - b.getTime()).map(d => (
+                                                                    <div key={d.toISOString()} className="flex items-center gap-3 bg-white p-2 rounded-lg border border-emerald-100 shadow-sm transition-all hover:border-emerald-200">
+                                                                        <div className="flex-shrink-0 w-12 text-center">
+                                                                            <p className="text-[10px] font-extrabold text-emerald-700 leading-none">{format(d, 'dd')}</p>
+                                                                            <p className="text-[8px] font-bold text-muted-foreground uppercase">{format(d, 'MMM')}</p>
+                                                                        </div>
+                                                                        <div className="h-4 w-[1px] bg-emerald-100" />
+                                                                        <Input 
+                                                                            className="h-8 text-xs border-transparent bg-transparent focus-visible:ring-0 focus-visible:border-emerald-200 p-0 placeholder:text-muted-foreground/50 font-medium" 
+                                                                            placeholder={`Topic for ${format(d, 'do MMM')}...`}
+                                                                            value={dateTopics[d.toISOString()] || ''}
+                                                                            onChange={(e) => handleDateTopicChange(d, e.target.value)}
+                                                                        />
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex justify-end gap-3 pt-6 border-t border-border">
+                                            <Button 
+                                                type="submit" 
+                                                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-12 h-14 shadow-lg shadow-emerald-500/10 gap-3 font-extrabold text-base"
+                                                disabled={bulkCreateClasses.isPending || selectedDays.length === 0}
+                                            >
+                                                {bulkCreateClasses.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <CalendarIcon className="w-5 h-5" />}
+                                                Schedule {selectedDays.length} Classes
+                                            </Button>
+                                        </div>
+                                    </form>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                    </div>
+                </Tabs>
+            )}
 
             {/* Session History Table - Below Form */}
             <div className="w-full space-y-4">
@@ -445,12 +497,13 @@ export default function AddClassPage() {
                                             <TableHead className="text-xs font-bold uppercase tracking-wider text-muted-foreground h-12 px-6">Subject & Topic</TableHead>
                                             <TableHead className="text-xs font-bold uppercase tracking-wider text-muted-foreground h-12 px-6">Earnings</TableHead>
                                             <TableHead className="text-xs font-bold uppercase tracking-wider text-muted-foreground h-12 px-6">Status</TableHead>
-                                            <TableHead className="text-right text-xs font-bold uppercase tracking-wider text-muted-foreground h-12 px-6">Actions</TableHead>
+                                            {user?.role !== 'student' && <TableHead className="text-right text-xs font-bold uppercase tracking-wider text-muted-foreground h-12 px-6">Actions</TableHead>}
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {allClasses.map((c) => {
                                             const student = c.studentId && typeof c.studentId === 'object' ? c.studentId : null;
+                                            const teacher = c.teacherId && typeof c.teacherId === 'object' ? c.teacherId : null;
                                             return (
                                                 <TableRow key={c._id} className="group hover:bg-emerald-50/30 transition-colors border-b border-border/60 last:border-0">
                                                     <TableCell className="px-6 py-4">
@@ -464,9 +517,11 @@ export default function AddClassPage() {
                                                     <TableCell className="px-6 py-4">
                                                         <div className="flex items-center gap-2">
                                                             <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-[10px] font-bold text-emerald-700">
-                                                                {student?.name?.charAt(0) || 'U'}
+                                                                {(user?.role === 'student' ? teacher?.name : student?.name)?.charAt(0) || 'U'}
                                                             </div>
-                                                            <span className="font-semibold text-sm">{student?.name || 'Unknown'}</span>
+                                                            <span className="font-semibold text-sm">
+                                                                {user?.role === 'student' ? (teacher?.name || 'Your Teacher') : (student?.name || 'Unknown Student')}
+                                                            </span>
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="px-6 py-4">
@@ -483,16 +538,29 @@ export default function AddClassPage() {
                                                             {c.status}
                                                         </Badge>
                                                     </TableCell>
-                                                    <TableCell className="px-6 py-4 text-right">
-                                                        <div className="flex justify-end gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-emerald-100 hover:text-emerald-700 transition-colors" onClick={() => router.push(`${pathname}?edit=${c._id}`)}>
-                                                                <Pencil className="w-3.5 h-3.5" />
-                                                            </Button>
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-rose-100 hover:text-rose-700 transition-colors" onClick={() => setDeleteConfirm(c._id)}>
-                                                                <Trash2 className="w-3.5 h-3.5" />
-                                                            </Button>
-                                                        </div>
-                                                    </TableCell>
+                                                    {user?.role !== 'student' && (
+                                                        <TableCell className="px-6 py-4 text-right">
+                                                            <div className="flex justify-end gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                {/* <Button variant="ghost" size="icon" title="Add Homework" className="h-8 w-8 rounded-lg hover:bg-emerald-100 hover:text-emerald-700 transition-colors" onClick={() => setHomeworkDialog({ 
+                                                                    open: true, 
+                                                                    data: { 
+                                                                        classId: c._id, 
+                                                                        studentId: student?._id, 
+                                                                        subject: c.subject, 
+                                                                        topic: c.topic 
+                                                                    } 
+                                                                })}>
+                                                                    <ClipboardList className="w-4 h-4" />
+                                                                </Button> */}
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-emerald-100 hover:text-emerald-700 transition-colors" onClick={() => router.push(`${pathname}?edit=${c._id}`)}>
+                                                                    <Pencil className="w-3.5 h-3.5" />
+                                                                </Button>
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-rose-100 hover:text-rose-700 transition-colors" onClick={() => setDeleteConfirm(c._id)}>
+                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                </Button>
+                                                            </div>
+                                                        </TableCell>
+                                                    )}
                                                 </TableRow>
                                             );
                                         })}
@@ -530,6 +598,13 @@ export default function AddClassPage() {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            <AddHomeworkDialog 
+                open={homeworkDialog.open} 
+                onOpenChange={(open) => setHomeworkDialog({ ...homeworkDialog, open })} 
+                initialData={homeworkDialog.data}
+                teacherId={user?._id || ''}
+            />
         </div>
     );
 }

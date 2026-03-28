@@ -4,13 +4,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useClasses } from '@/lib/hooks/useClasses';
 import { usePayments } from '@/lib/hooks/usePayments';
 import { useReports } from '@/lib/hooks/useReports';
+import { useHomeworks } from '@/lib/hooks/useHomeworks';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { BookOpen, DollarSign, CalendarClock, TrendingUp, Loader2, ArrowUpRight, Video } from 'lucide-react';
+import { BookOpen, DollarSign, CalendarClock, TrendingUp, Loader2, ArrowUpRight, Video, ClipboardList, CheckCircle2, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import type { ApiClass } from '@/lib/hooks/useClasses';
+import type { Homework } from '@/types';
 import { apiPost } from '@/lib/api';
 import { toast } from 'sonner';
 import { useState } from 'react';
@@ -27,6 +29,7 @@ export default function StudentDashboardPage() {
     const { data: classesData, isLoading: loadingClasses } = useClasses();
     const { data: paymentsData, isLoading: loadingPayments } = usePayments();
     const { data: reportsData } = useReports();
+    const { data: homeworksData, isLoading: loadingHomeworks } = useHomeworks({ studentId: user?._id });
     const [joiningId, setJoiningId] = useState<string | null>(null);
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
     const changePassword = useChangeStudentPassword();
@@ -49,6 +52,8 @@ export default function StudentDashboardPage() {
     const mySessions = classesData?.classes ?? [];
     const myPayments = paymentsData?.payments ?? [];
     const myReports = reportsData?.reports ?? [];
+    const myHomeworks = homeworksData?.homeworks ?? [];
+    const pendingHomeworks = myHomeworks.filter((h: Homework) => h.status === 'pending');
 
     const upcomingClasses = mySessions
         .filter((c) => c.status === 'scheduled' || c.status === 'rescheduled')
@@ -90,13 +95,13 @@ export default function StudentDashboardPage() {
             iconColor: totalDue > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400',
         },
         {
-            title: 'Latest Rating',
-            value: latestReport ? `${latestReport.understandingLevel} / 5` : 'N/A',
-            icon: TrendingUp,
-            trend: latestReport?.subject || 'No reports yet',
-            bg: 'bg-indigo-50 dark:bg-indigo-900/20',
-            iconBg: 'bg-indigo-100 dark:bg-indigo-900/40',
-            iconColor: 'text-indigo-600 dark:text-indigo-400',
+            title: 'Pending Tasks',
+            value: pendingHomeworks.length,
+            icon: ClipboardList,
+            trend: 'Tasks for this week',
+            bg: 'bg-amber-50 dark:bg-amber-900/20',
+            iconBg: 'bg-amber-100 dark:bg-amber-900/40',
+            iconColor: 'text-amber-600 dark:text-amber-400',
         },
     ];
 
@@ -290,6 +295,56 @@ export default function StudentDashboardPage() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Homework Section */}
+            <Card className="shadow-sm bg-card border border-border">
+                <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle className="text-base font-semibold">Your Homework Tasks</CardTitle>
+                        <p className="text-xs text-muted-foreground mt-0.5">Stay on top of your assignments</p>
+                    </div>
+                    <Link href="/homework" className="text-sm text-emerald-600 hover:underline flex items-center gap-1">
+                        View All <ArrowUpRight className="w-4 h-4" />
+                    </Link>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {myHomeworks.length === 0 ? (
+                            <div className="col-span-full text-center py-10 text-muted-foreground">
+                                <ClipboardList className="w-10 h-10 mx-auto opacity-20 mb-2" />
+                                <p>No homework assigned yet.</p>
+                            </div>
+                        ) : (
+                            myHomeworks.slice(0, 6).map((hw: Homework) => (
+                                <div key={hw._id} className="p-4 rounded-xl border border-border bg-muted/20 hover:border-emerald-200 transition-colors">
+                                    <div className="flex justify-between items-start mb-3">
+                                        <Badge className={`rounded-full text-[10px] uppercase px-2 h-5 border-0 ${
+                                            hw.status === 'pending' ? 'bg-amber-100 text-amber-700' : 
+                                            hw.status === 'graded' ? 'bg-emerald-100 text-emerald-700' : 
+                                            'bg-blue-100 text-blue-700'
+                                        }`}>
+                                            {hw.status}
+                                        </Badge>
+                                        <span className="text-[10px] font-bold text-muted-foreground">
+                                            Due {format(new Date(hw.dueDate || ''), 'dd MMM')}
+                                        </span>
+                                    </div>
+                                    <h4 className="font-bold text-sm text-foreground mb-1">{hw.topic}</h4>
+                                    <p className="text-[11px] text-muted-foreground mb-3 flex items-center gap-1">
+                                        <BookOpen className="w-3 h-3" /> {hw.subject}
+                                    </p>
+                                    <div className="pt-2 border-t border-border/60 flex justify-between items-center">
+                                        <span className="text-[10px] text-muted-foreground">Assigned: {format(new Date(hw.createdAt), 'MMM d')}</span>
+                                        <Link href="/homework" className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5">
+                                            View Task <ArrowRight className="w-3 h-3" />
+                                        </Link>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
 
             {/* Change Password Modal */}
             <Dialog open={isPasswordModalOpen} onOpenChange={setIsPasswordModalOpen}>

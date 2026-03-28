@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import type { AuthContextType, Role } from '@/types';
 
 export interface AuthUser {
@@ -35,6 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [token, setToken] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
+    const queryClient = useQueryClient();
 
     // Rehydrate from localStorage on mount
     useEffect(() => {
@@ -83,6 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             localStorage.setItem('authUser', JSON.stringify(authUser));
             setToken(data.data.token);
             setUser(authUser);
+            queryClient.clear();
             return true;
         } catch (err) {
             console.error('Login error:', err);
@@ -95,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem('authUser');
         setToken(null);
         setUser(null);
+        queryClient.clear();
         router.push('/login');
     };
 

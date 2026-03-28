@@ -15,8 +15,8 @@ export interface ApiClass {
     amount: number;
     notes?: string;
     status: 'scheduled' | 'ongoing' | 'completed' | 'cancelled' | 'rescheduled';
-    conducted?: boolean;
-    missed?: boolean;
+    conducted: boolean;
+    missed: boolean;
     actualStartTime?: string;
     actualEndTime?: string;
     createdAt: string;
@@ -86,6 +86,18 @@ export function useUpdateClass(id: string) {
     });
 }
 
+export function useEndClass() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (classId: string) => apiPost<ClassResponse>('/classes/end', { classId }),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: classKeys.all });
+            toast.success('Class marked as completed');
+        },
+        onError: (err: Error) => toast.error(err.message || 'Failed to complete class'),
+    });
+}
+
 export function useDeleteClass() {
     const qc = useQueryClient();
     return useMutation({
@@ -95,5 +107,25 @@ export function useDeleteClass() {
             toast.success('Class deleted');
         },
         onError: (err: Error) => toast.error(err.message || 'Failed to delete class'),
+    });
+}
+
+export function useBulkCreateClasses() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (body: {
+            studentId: string;
+            subject: string;
+            topic: string;
+            classes: { date: string; time: string; topic?: string }[];
+            duration: number;
+            amount?: number;
+            notes?: string;
+        }) => apiPost<{ success: boolean; data: { classes: ApiClass[] } }>('/classes/bulk', body),
+        onSuccess: (data) => {
+            qc.invalidateQueries({ queryKey: classKeys.all });
+            toast.success(`${data.data.classes.length} classes scheduled successfully`);
+        },
+        onError: (err: Error) => toast.error(err.message || 'Failed to schedule bulk classes'),
     });
 }

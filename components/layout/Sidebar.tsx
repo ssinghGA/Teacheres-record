@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import {
     LayoutDashboard, Users, User, BookOpen, BarChart3, Settings,
     GraduationCap, PlusCircle, TrendingUp, DollarSign, Shield, X,
-    ChevronRight, LogOut, School, UserPlus,
+    ChevronRight, LogOut, School, UserPlus, ClipboardList
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -21,6 +21,7 @@ const teacherNav = [
     { href: '/class-history', label: 'Class History', icon: BookOpen },
     { href: '/progress-reports', label: 'Progress Reports', icon: TrendingUp },
     { href: '/earnings', label: 'Earnings', icon: DollarSign },
+    // { href: '/homework', label: 'Homework', icon: ClipboardList },
     { href: '/profile', label: 'Profile', icon: User },
     { href: '/settings', label: 'Settings', icon: Settings },
 ];
@@ -31,6 +32,7 @@ const adminNav = [
     { href: '/students', label: 'Students', icon: Users },
     { href: '/classes', label: 'Classes', icon: BookOpen },
     { href: '/reports', label: 'Reports', icon: BarChart3 },
+    // { href: '/homework', label: 'Homework', icon: ClipboardList },
     { href: '/permissions', label: 'Permissions', icon: Shield },
     { href: '/settings', label: 'Settings', icon: Settings },
 ];
@@ -42,6 +44,7 @@ const superAdminNav = [
     { href: '/classes', label: 'Classes', icon: BookOpen },
     { href: '/reports', label: 'Reports', icon: BarChart3 },
     { href: '/users', label: 'Manage Users', icon: UserPlus },
+    // { href: '/homework', label: 'Homework', icon: ClipboardList },
     { href: '/permissions', label: 'Permissions', icon: Shield },
     { href: '/settings', label: 'Settings', icon: Settings },
 ];

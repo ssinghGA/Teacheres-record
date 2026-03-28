@@ -42,14 +42,15 @@ export const teacherKeys = {
     detail: (id: string) => ['teachers', 'detail', id] as const,
 };
 
-export function useTeachers(params?: Record<string, string | number | undefined>) {
-    return useQuery({
+export function useTeachers(params?: Record<string, string | number | undefined>, options?: any) {
+    return useQuery<TeachersResponse, Error, { teachers: ApiTeacher[]; pagination: TeachersResponse['data']['pagination'] }>({
         queryKey: teacherKeys.list(params),
         queryFn: () => apiGet<TeachersResponse>('/teachers', params),
-        select: (data) => ({
+        select: (data: TeachersResponse) => ({
             teachers: data.data.teachers,
             pagination: data.data.pagination,
         }),
+        ...options
     });
 }
 

@@ -4,16 +4,23 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useClasses } from '@/lib/hooks/useClasses';
 import { usePayments } from '@/lib/hooks/usePayments';
 import { useReports } from '@/lib/hooks/useReports';
+import { useHomeworks } from '@/lib/hooks/useHomeworks';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { BookOpen, DollarSign, CalendarClock, TrendingUp, Loader2, ArrowUpRight, Video } from 'lucide-react';
+import { BookOpen, DollarSign, CalendarClock, TrendingUp, Loader2, ArrowUpRight, Video, ClipboardList, CheckCircle2, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import type { ApiClass } from '@/lib/hooks/useClasses';
+import type { Homework } from '@/types';
 import { apiPost } from '@/lib/api';
-import { useState } from 'react';
 import { toast } from 'sonner';
+import { useState } from 'react';
+import { useChangeStudentPassword } from '@/lib/hooks/useStudents';
+import { useForm } from 'react-hook-form';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 export default function StudentDashboardPage() {
     const { user } = useAuth();
@@ -22,7 +29,10 @@ export default function StudentDashboardPage() {
     const { data: classesData, isLoading: loadingClasses } = useClasses();
     const { data: paymentsData, isLoading: loadingPayments } = usePayments();
     const { data: reportsData } = useReports();
+    const { data: homeworksData, isLoading: loadingHomeworks } = useHomeworks({ studentId: user?._id });
     const [joiningId, setJoiningId] = useState<string | null>(null);
+    const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+    const changePassword = useChangeStudentPassword();
 
     const isLoading = loadingClasses || loadingPayments;
 
@@ -42,8 +52,12 @@ export default function StudentDashboardPage() {
     const mySessions = classesData?.classes ?? [];
     const myPayments = paymentsData?.payments ?? [];
     const myReports = reportsData?.reports ?? [];
+    const myHomeworks = homeworksData?.homeworks ?? [];
+    const pendingHomeworks = myHomeworks.filter((h: Homework) => h.status === 'pending');
 
-    const upcomingClasses = mySessions.filter((c) => c.status === 'scheduled' || c.status === 'rescheduled');
+    const upcomingClasses = mySessions
+        .filter((c) => c.status === 'scheduled' || c.status === 'rescheduled')
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     const completedClasses = mySessions.filter((c) => c.status === 'completed');
 
     // Calculate total dues or paid
@@ -81,13 +95,13 @@ export default function StudentDashboardPage() {
             iconColor: totalDue > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400',
         },
         {
-            title: 'Latest Rating',
-            value: latestReport ? `${latestReport.understandingLevel} / 5` : 'N/A',
-            icon: TrendingUp,
-            trend: latestReport?.subject || 'No reports yet',
-            bg: 'bg-indigo-50 dark:bg-indigo-900/20',
-            iconBg: 'bg-indigo-100 dark:bg-indigo-900/40',
-            iconColor: 'text-indigo-600 dark:text-indigo-400',
+            title: 'Pending Tasks',
+            value: pendingHomeworks.length,
+            icon: ClipboardList,
+            trend: 'Tasks for this week',
+            bg: 'bg-amber-50 dark:bg-amber-900/20',
+            iconBg: 'bg-amber-100 dark:bg-amber-900/40',
+            iconColor: 'text-amber-600 dark:text-amber-400',
         },
     ];
 
@@ -111,16 +125,26 @@ export default function StudentDashboardPage() {
                         {format(now, 'EEEE, MMMM d, yyyy')} · Here is your learning overview
                     </p>
                 </div>
-                {upcomingClasses.length > 0 && upcomingClasses[0].teacherId && typeof upcomingClasses[0].teacherId === 'object' && upcomingClasses[0].teacherId.googleMeetLink && (
-                    <Button
-                        disabled={joiningId === upcomingClasses[0]._id}
-                        onClick={() => handleJoinClass(upcomingClasses[0]._id, (upcomingClasses[0].teacherId as any).googleMeetLink)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-lg shadow-emerald-500/20 rounded-xl px-6 h-10 inline-flex items-center justify-center font-medium text-sm transition-all"
-                    >
-                        {joiningId === upcomingClasses[0]._id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
-                        Join Your Meet
-                    </Button>
-                )}
+                    <div className="flex items-center gap-2">
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => setIsPasswordModalOpen(true)}
+                            className="bg-card hover:bg-muted font-medium text-xs px-4 h-10 rounded-xl"
+                        >
+                            Change Password
+                        </Button>
+                        {upcomingClasses.length > 0 && upcomingClasses[0].teacherId && typeof upcomingClasses[0].teacherId === 'object' && upcomingClasses[0].teacherId.googleMeetLink && (
+                            <Button
+                                disabled={joiningId === upcomingClasses[0]._id}
+                                onClick={() => handleJoinClass(upcomingClasses[0]._id, (upcomingClasses[0].teacherId as any).googleMeetLink)}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-lg shadow-emerald-500/20 rounded-xl px-6 h-10 inline-flex items-center justify-center font-medium text-sm transition-all"
+                            >
+                                {joiningId === upcomingClasses[0]._id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
+                                Join Your Meet
+                            </Button>
+                        )}
+                    </div>
             </div>
 
             {/* Stats grid */}
@@ -271,6 +295,115 @@ export default function StudentDashboardPage() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Homework Section */}
+            <Card className="shadow-sm bg-card border border-border">
+                <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle className="text-base font-semibold">Your Homework Tasks</CardTitle>
+                        <p className="text-xs text-muted-foreground mt-0.5">Stay on top of your assignments</p>
+                    </div>
+                    <Link href="/homework" className="text-sm text-emerald-600 hover:underline flex items-center gap-1">
+                        View All <ArrowUpRight className="w-4 h-4" />
+                    </Link>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {myHomeworks.length === 0 ? (
+                            <div className="col-span-full text-center py-10 text-muted-foreground">
+                                <ClipboardList className="w-10 h-10 mx-auto opacity-20 mb-2" />
+                                <p>No homework assigned yet.</p>
+                            </div>
+                        ) : (
+                            myHomeworks.slice(0, 6).map((hw: Homework) => (
+                                <div key={hw._id} className="p-4 rounded-xl border border-border bg-muted/20 hover:border-emerald-200 transition-colors">
+                                    <div className="flex justify-between items-start mb-3">
+                                        <Badge className={`rounded-full text-[10px] uppercase px-2 h-5 border-0 ${
+                                            hw.status === 'pending' ? 'bg-amber-100 text-amber-700' : 
+                                            hw.status === 'graded' ? 'bg-emerald-100 text-emerald-700' : 
+                                            'bg-blue-100 text-blue-700'
+                                        }`}>
+                                            {hw.status}
+                                        </Badge>
+                                        <span className="text-[10px] font-bold text-muted-foreground">
+                                            Due {format(new Date(hw.dueDate || ''), 'dd MMM')}
+                                        </span>
+                                    </div>
+                                    <h4 className="font-bold text-sm text-foreground mb-1">{hw.topic}</h4>
+                                    <p className="text-[11px] text-muted-foreground mb-3 flex items-center gap-1">
+                                        <BookOpen className="w-3 h-3" /> {hw.subject}
+                                    </p>
+                                    <div className="pt-2 border-t border-border/60 flex justify-between items-center">
+                                        <span className="text-[10px] text-muted-foreground">Assigned: {format(new Date(hw.createdAt), 'MMM d')}</span>
+                                        <Link href="/homework" className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5">
+                                            View Task <ArrowRight className="w-3 h-3" />
+                                        </Link>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Change Password Modal */}
+            <Dialog open={isPasswordModalOpen} onOpenChange={setIsPasswordModalOpen}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Change Your Password</DialogTitle>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Set a new password for your portal access.
+                        </p>
+                    </DialogHeader>
+                    <ChangePasswordForm 
+                        email={user?.email || ''} 
+                        onSuccess={() => setIsPasswordModalOpen(false)} 
+                    />
+                </DialogContent>
+            </Dialog>
         </div>
+    );
+}
+
+function ChangePasswordForm({ email, onSuccess }: { email: string; onSuccess: () => void }) {
+    const changePassword = useChangeStudentPassword();
+    const { register, handleSubmit, formState: { errors } } = useForm({
+        defaultValues: { password: '' }
+    });
+
+    const onSubmit = async (data: any) => {
+        if (!email) return;
+        try {
+            await changePassword.mutateAsync({ email, password: data.password });
+            toast.success('Password updated successfully');
+            onSuccess();
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to update password');
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-2">
+            <div className="space-y-1">
+                <Label>New Password *</Label>
+                <Input 
+                    type="password" 
+                    placeholder="Min 6 characters" 
+                    {...register('password', { required: 'Required', minLength: { value: 6, message: 'Min 6 characters' } })} 
+                />
+                {errors.password && <p className="text-xs text-red-500">{(errors.password as any).message}</p>}
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+                <Button variant="outline" type="button" onClick={onSuccess}>Cancel</Button>
+                <Button
+                    type="submit"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    disabled={changePassword.isPending}
+                >
+                    {changePassword.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Update Password
+                </Button>
+            </div>
+        </form>
     );
 }

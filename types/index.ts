@@ -67,6 +67,22 @@ export interface Payment {
   status: 'paid' | 'pending' | 'overdue';
 }
 
+export interface Homework {
+  _id: string;
+  teacherId: string | { _id: string; name: string };
+  studentId: string | { _id: string; name: string };
+  classId?: string | { _id: string; topic: string };
+  subject: string;
+  topic: string;
+  description: string;
+  attachments?: string[];
+  submissions?: string[];
+  submissionNotes?: string;
+  dueDate?: string;
+  status: 'pending' | 'submitted' | 'graded';
+  createdAt: string;
+}
+
 export interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
